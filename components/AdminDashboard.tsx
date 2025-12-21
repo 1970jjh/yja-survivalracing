@@ -19,7 +19,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   previewMode,
   onTogglePreview
 }) => {
-  const [totalPushInput, setTotalPushInput] = useState(gameState.adminTotalPush || 47);
+  const [totalPushInput, setTotalPushInput] = useState(gameState.adminTotalPush || 10);
   const [timerMinutes, setTimerMinutes] = useState(3);
   const [teamRanks, setTeamRanks] = useState<Record<string, number>>({});
   const [pendingAllocations, setPendingAllocations] = useState<Record<string, number>>({});
@@ -104,7 +104,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     updateState({ ...gameState, status: 'SPONSORING' });
   };
 
-  // Push 배분 계산 (예: 47 / 6팀 = 1st:12, 2nd:10, 3rd:8, 4th:6, 5th:6, 6th:5)
+  // Push 배분 계산 (1등 입력값 기준, 순위별 차등 배분)
+  // 예: 1등 10칸 → 2등 8칸(-2) → 3등 7칸(-1) → 4등 6칸(-1) → ...
   const handleRunAllocation = () => {
     const currentTeams = gameState.teams || [];
     const teamsWithRanks = currentTeams.filter(t => teamRanks[t.id]);
@@ -113,8 +114,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       return;
     }
 
-    const n = currentTeams.length;
-    const total = totalPushInput;
+    const firstPlacePush = totalPushInput;
     const newAllocations: Record<string, number> = {};
 
     // 순위별로 정렬
@@ -124,33 +124,23 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       return rankA - rankB;
     });
 
-    // 기본 할당량 계산 (꼴찌 기준)
-    const baseAmount = Math.floor(total / n);
-
-    // 순위별 보너스 계산을 위한 가중치
-    // 1등: n-1점, 2등: n-2점, ..., 꼴찌: 0점
-    const totalBonusPoints = (n * (n - 1)) / 2;
-    const bonusPool = total - (baseAmount * n);
-
-    // 각 팀에 할당량 계산
-    let allocated = 0;
+    // 각 팀에 할당량 계산 (1등 기준, 2등은 -2, 그 이후는 -1씩)
     sortedTeams.forEach((team, idx) => {
       const rank = teamRanks[team.id] || (idx + 1);
-      const bonusPoints = n - rank;
-      const bonus = totalBonusPoints > 0
-        ? Math.round((bonusPool / totalBonusPoints) * bonusPoints)
-        : 0;
-      const allowance = Math.max(baseAmount + bonus, 1);
-      newAllocations[team.id] = allowance;
-      allocated += allowance;
-    });
+      let allocation: number;
 
-    // 반올림 오차 조정 (1등에게 추가 또는 차감)
-    if (sortedTeams.length > 0) {
-      const diff = total - allocated;
-      const firstTeam = sortedTeams[0];
-      newAllocations[firstTeam.id] = (newAllocations[firstTeam.id] || 0) + diff;
-    }
+      if (rank === 1) {
+        allocation = firstPlacePush;
+      } else if (rank === 2) {
+        allocation = firstPlacePush - 2;
+      } else {
+        // 3등부터는 2등에서 순위마다 -1
+        allocation = firstPlacePush - 2 - (rank - 2);
+      }
+
+      // 최소 1칸 보장
+      newAllocations[team.id] = Math.max(allocation, 1);
+    });
 
     setPendingAllocations(newAllocations);
   };
@@ -605,7 +595,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <div className="flex-1 flex flex-col gap-2">
                   <div className="flex gap-2">
                     <div className="flex-1">
-                      <label className="text-[9px] font-black block mb-1">총 PUSH</label>
+                      <label className="text-[9px] font-black block mb-1">1등 PUSH</label>
                       <input type="number" className="brutal-input text-sm w-full" value={totalPushInput} onChange={(e) => setTotalPushInput(parseInt(e.target.value) || 0)} />
                     </div>
                     <div className="flex-1">
@@ -613,6 +603,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <input type="number" className="brutal-input text-sm w-full" value={timerMinutes} onChange={(e) => setTimerMinutes(parseInt(e.target.value) || 1)} />
                     </div>
                   </div>
+                  <p className="text-[8px] text-black/60">2등: -2칸, 3등~: -1칸씩</p>
                 </div>
               </section>
 
@@ -663,7 +654,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 {teams.length > 0 && (
                   <div className="space-y-2">
                     <div className="text-[9px] text-center font-bold text-black/60">
-                      총 {totalPushInput}칸 / {teams.length}팀
+                      1등 {totalPushInput}칸 / {teams.length}팀
                     </div>
                     <button onClick={handleRunAllocation} className="brutal-btn w-full py-2 bg-white text-xs font-black">
                       📊 배분 계산
