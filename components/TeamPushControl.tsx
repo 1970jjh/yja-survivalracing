@@ -9,8 +9,18 @@ interface TeamPushControlProps {
 }
 
 const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUpdate }) => {
-  const lastSentRef = useRef<string>("");
-  const [pushes, setPushes] = useState<number[]>(new Array(8).fill(0));
+  const initializedRef = useRef(false);
+  const [pushes, setPushes] = useState<number[]>(() => {
+    // 초기 상태를 team.currentRoundPushes에서 가져오기 (한 번만)
+    const initial = new Array(8).fill(0);
+    const currentPushes = team.currentRoundPushes || [];
+    currentPushes.forEach(p => {
+      if (p.racerId >= 1 && p.racerId <= 8) {
+        initial[p.racerId - 1] = p.count;
+      }
+    });
+    return initial;
+  });
   const [showSponsoredRacers, setShowSponsoredRacers] = useState(false);
 
   // 안전한 기본값
@@ -18,35 +28,29 @@ const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUp
   const racers = gameState.racers || [];
   const sponsorships = team.sponsorships || [];
 
+  // 컴포넌트 마운트 시 한 번만 초기화 (Firebase에서 데이터 불러올 때만)
   useEffect(() => {
-    if (currentRoundPushes.length > 0 && !team.hasSubmittedPushes) {
+    if (!initializedRef.current && currentRoundPushes.length > 0 && !team.hasSubmittedPushes) {
       const newPushes = new Array(8).fill(0);
       currentRoundPushes.forEach(p => {
-        newPushes[p.racerId - 1] = p.count;
+        if (p.racerId >= 1 && p.racerId <= 8) {
+          newPushes[p.racerId - 1] = p.count;
+        }
       });
-      const pushStr = JSON.stringify(newPushes);
-      if (pushStr !== lastSentRef.current) {
-        setPushes(newPushes);
-        lastSentRef.current = pushStr;
-      }
+      setPushes(newPushes);
+      initializedRef.current = true;
     }
-  }, [currentRoundPushes, team.hasSubmittedPushes]);
+  }, []); // 의존성 배열 비움 - 마운트 시 한 번만 실행
 
   const totalUsed = pushes.reduce((a, b) => a + Math.abs(b), 0);
   const remaining = team.totalPushAllowance - totalUsed;
 
+  // 로컬 상태만 변경 (Firebase에 바로 저장하지 않음)
   const handlePushChange = (racerIdx: number, val: number) => {
     const clamped = Math.max(-20, Math.min(20, val));
     const newPushes = [...pushes];
     newPushes[racerIdx] = clamped;
     setPushes(newPushes);
-    
-    const decisions: PushDecision[] = newPushes
-      .map((p, i) => ({ racerId: i + 1, count: p }))
-      .filter(p => p.count !== 0);
-    
-    lastSentRef.current = JSON.stringify(newPushes);
-    onUpdate({ currentRoundPushes: decisions });
   };
 
   const validatePushes = (): string | null => {
@@ -60,10 +64,21 @@ const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUp
     return null;
   };
 
+  // 제출 시에만 Firebase에 저장
   const handleSubmit = () => {
     const error = validatePushes();
     if (error) return alert(error);
-    onUpdate({ hasSubmittedPushes: true });
+
+    // PUSH 결정 데이터 생성
+    const decisions: PushDecision[] = pushes
+      .map((p, i) => ({ racerId: i + 1, count: p }))
+      .filter(p => p.count !== 0);
+
+    // Firebase에 저장 (제출 시에만)
+    onUpdate({
+      currentRoundPushes: decisions,
+      hasSubmittedPushes: true
+    });
   };
 
   // Header Component for Mobile UI
