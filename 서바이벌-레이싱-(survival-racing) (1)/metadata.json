@@ -1,0 +1,5 @@
+{
+  "name": "서바이벌 레이싱 (Survival Racing)",
+  "description": "실시간 팀빌딩 교육용 앱으로, 각 팀이 레이서에게 스폰을 하고 미니게임을 통해 얻은 PUSH 권한으로 레이서를 움직여 승리하는 전략 레이싱 게임입니다.",
+  "requestFramePermissions": []
+}
