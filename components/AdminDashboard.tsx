@@ -6,6 +6,8 @@ import TeamSponsorship from './TeamSponsorship';
 
 // 자동차 시동 소리 URL (무료 효과음)
 const CAR_ENGINE_SOUND = 'https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3';
+// 타이머 알람 소리 URL
+const TIMER_ALARM_SOUND = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3';
 
 interface AdminDashboardProps {
   gameState: GameState;
@@ -30,12 +32,36 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [previewTeamIndex, setPreviewTeamIndex] = useState(0);
   const [showMiniGamePopup, setShowMiniGamePopup] = useState(true);
   const carSoundRef = useRef<HTMLAudioElement | null>(null);
+  const alarmSoundRef = useRef<HTMLAudioElement | null>(null);
+
+  // 퀵 타이머 상태
+  const [showQuickTimer, setShowQuickTimer] = useState(false);
+  const [quickTimerInputMin, setQuickTimerInputMin] = useState(1);
+  const [quickTimerInputSec, setQuickTimerInputSec] = useState(0);
+  const [quickTimerRemaining, setQuickTimerRemaining] = useState(0);
+  const [quickTimerRunning, setQuickTimerRunning] = useState(false);
 
   // 자동차 소리 재생 함수
   const playCarSound = () => {
     if (carSoundRef.current) {
       carSoundRef.current.currentTime = 0;
       carSoundRef.current.play().catch(() => {});
+    }
+  };
+
+  // 알람 소리 재생 함수
+  const playAlarmSound = () => {
+    if (alarmSoundRef.current) {
+      alarmSoundRef.current.currentTime = 0;
+      alarmSoundRef.current.play().catch(() => {});
+    }
+  };
+
+  // 알람 소리 정지 함수
+  const stopAlarmSound = () => {
+    if (alarmSoundRef.current) {
+      alarmSoundRef.current.pause();
+      alarmSoundRef.current.currentTime = 0;
     }
   };
 
@@ -81,6 +107,48 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     return () => clearInterval(interval);
   }, [gameState.timer?.isRunning, gameState.timer?.remainingSeconds]);
+
+  // 퀵 타이머 카운트다운
+  useEffect(() => {
+    if (!quickTimerRunning || quickTimerRemaining <= 0) return;
+
+    const interval = setInterval(() => {
+      setQuickTimerRemaining(prev => {
+        if (prev <= 1) {
+          setQuickTimerRunning(false);
+          // 시간 종료 시 알람 재생
+          playAlarmSound();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [quickTimerRunning, quickTimerRemaining]);
+
+  // 퀵 타이머 시작
+  const startQuickTimer = () => {
+    const totalSeconds = quickTimerInputMin * 60 + quickTimerInputSec;
+    if (totalSeconds > 0) {
+      setQuickTimerRemaining(totalSeconds);
+      setQuickTimerRunning(true);
+      stopAlarmSound();
+    }
+  };
+
+  // 퀵 타이머 정지
+  const stopQuickTimer = () => {
+    setQuickTimerRunning(false);
+    stopAlarmSound();
+  };
+
+  // 퀵 타이머 리셋
+  const resetQuickTimer = () => {
+    setQuickTimerRunning(false);
+    setQuickTimerRemaining(0);
+    stopAlarmSound();
+  };
 
   // 랜덤 Push 배분 (시간 초과 시)
   const randomlyDistributePush = (team: Team): Team => {
@@ -366,6 +434,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     <div className="flex flex-col h-screen overflow-hidden select-none font-sans relative bg-slate-100">
       {/* 자동차 시동 소리 */}
       <audio ref={carSoundRef} src={CAR_ENGINE_SOUND} preload="auto" />
+      {/* 타이머 알람 소리 */}
+      <audio ref={alarmSoundRef} src={TIMER_ALARM_SOUND} preload="auto" loop />
 
       {/* BGM */}
       {isMusicPlaying && (
@@ -410,6 +480,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
 
         <div className="flex gap-3 items-center">
+          <button onClick={() => setShowQuickTimer(true)} className={`brutal-btn px-4 py-2 text-sm ${quickTimerRunning ? 'bg-red-500 text-white animate-pulse' : 'bg-white'}`}>
+            {quickTimerRunning ? `⏱ ${formatTime(quickTimerRemaining)}` : '⏱ TIMER'}
+          </button>
           <button onClick={() => setIsMusicPlaying(!isMusicPlaying)} className={`brutal-btn px-4 py-2 text-sm ${isMusicPlaying ? 'bg-green-500 text-white' : 'bg-white'}`}>
             {isMusicPlaying ? '⏹ BGM' : '▶ BGM'}
           </button>
@@ -724,6 +797,122 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         )}
       </div>
+
+      {/* 퀵 타이머 팝업 */}
+      {showQuickTimer && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60]">
+          <div className="brutal-card bg-white p-8 text-center relative min-w-[400px]">
+            {/* X 버튼 */}
+            <button
+              onClick={() => { setShowQuickTimer(false); stopAlarmSound(); }}
+              className="absolute top-2 right-2 w-10 h-10 bg-black text-white rounded-full font-black text-xl hover:bg-red-500 transition-colors"
+            >
+              ✕
+            </button>
+
+            <h2 className="text-3xl font-black mb-6">⏱ QUICK TIMER</h2>
+
+            {/* 타이머 디스플레이 */}
+            <div className={`text-8xl font-black mb-8 ${quickTimerRemaining === 0 && !quickTimerRunning ? 'text-black' : quickTimerRemaining <= 10 ? 'text-red-500 animate-pulse' : 'text-blue-600'}`}>
+              {quickTimerRemaining > 0 || quickTimerRunning ? formatTime(quickTimerRemaining) : formatTime(quickTimerInputMin * 60 + quickTimerInputSec)}
+            </div>
+
+            {/* 시간 입력 (타이머가 실행 중이 아닐 때만) */}
+            {!quickTimerRunning && quickTimerRemaining === 0 && (
+              <div className="flex gap-4 justify-center mb-6">
+                <div className="flex flex-col items-center">
+                  <label className="text-sm font-black mb-2">분</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="59"
+                    className="brutal-input w-24 text-center text-3xl font-black"
+                    value={quickTimerInputMin}
+                    onChange={(e) => setQuickTimerInputMin(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
+                  />
+                </div>
+                <div className="flex flex-col items-center">
+                  <label className="text-sm font-black mb-2">초</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="59"
+                    className="brutal-input w-24 text-center text-3xl font-black"
+                    value={quickTimerInputSec}
+                    onChange={(e) => setQuickTimerInputSec(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* 프리셋 버튼들 (타이머가 실행 중이 아닐 때만) */}
+            {!quickTimerRunning && quickTimerRemaining === 0 && (
+              <div className="flex gap-2 justify-center mb-6">
+                <button onClick={() => { setQuickTimerInputMin(1); setQuickTimerInputSec(0); }} className="brutal-btn px-4 py-2 bg-gray-200 text-sm">1분</button>
+                <button onClick={() => { setQuickTimerInputMin(2); setQuickTimerInputSec(0); }} className="brutal-btn px-4 py-2 bg-gray-200 text-sm">2분</button>
+                <button onClick={() => { setQuickTimerInputMin(3); setQuickTimerInputSec(0); }} className="brutal-btn px-4 py-2 bg-gray-200 text-sm">3분</button>
+                <button onClick={() => { setQuickTimerInputMin(5); setQuickTimerInputSec(0); }} className="brutal-btn px-4 py-2 bg-gray-200 text-sm">5분</button>
+                <button onClick={() => { setQuickTimerInputMin(0); setQuickTimerInputSec(30); }} className="brutal-btn px-4 py-2 bg-gray-200 text-sm">30초</button>
+              </div>
+            )}
+
+            {/* 컨트롤 버튼들 */}
+            <div className="flex gap-4 justify-center">
+              {!quickTimerRunning && quickTimerRemaining === 0 && (
+                <button
+                  onClick={startQuickTimer}
+                  className="brutal-btn px-8 py-4 bg-green-500 text-white text-xl font-black"
+                >
+                  ▶ START
+                </button>
+              )}
+              {quickTimerRunning && (
+                <button
+                  onClick={stopQuickTimer}
+                  className="brutal-btn px-8 py-4 bg-red-500 text-white text-xl font-black"
+                >
+                  ⏸ STOP
+                </button>
+              )}
+              {!quickTimerRunning && quickTimerRemaining > 0 && (
+                <>
+                  <button
+                    onClick={() => setQuickTimerRunning(true)}
+                    className="brutal-btn px-8 py-4 bg-green-500 text-white text-xl font-black"
+                  >
+                    ▶ RESUME
+                  </button>
+                  <button
+                    onClick={resetQuickTimer}
+                    className="brutal-btn px-8 py-4 bg-gray-500 text-white text-xl font-black"
+                  >
+                    🔄 RESET
+                  </button>
+                </>
+              )}
+              {/* 타이머 완료 시 */}
+              {!quickTimerRunning && quickTimerRemaining === 0 && quickTimerInputMin === 0 && quickTimerInputSec === 0 && (
+                <button
+                  onClick={() => { stopAlarmSound(); setQuickTimerInputMin(1); }}
+                  className="brutal-btn px-8 py-4 bg-yellow-400 text-black text-xl font-black"
+                >
+                  🔔 알람 끄기
+                </button>
+              )}
+            </div>
+
+            {/* 알람 끄기 버튼 (항상 표시) */}
+            {quickTimerRemaining === 0 && !quickTimerRunning && (
+              <button
+                onClick={stopAlarmSound}
+                className="mt-4 brutal-btn px-6 py-2 bg-orange-500 text-white text-sm font-black"
+              >
+                🔕 알람 정지
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 미니게임 팝업 */}
       {gameState.status === 'MINI_GAME' && showMiniGamePopup && (
