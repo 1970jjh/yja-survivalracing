@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GameState, Team, TimerState, RevealState } from './types';
 import { RACER_COLORS } from './constants';
-import { saveGameState, subscribeToActiveGames, isFirebaseConfigured, deleteGameState } from './firebase';
+import { saveGameState, subscribeToActiveGames, isFirebaseConfigured, deleteGameState, updateTeamPartial } from './firebase';
 import Lobby from './components/Lobby';
 import AdminSetup from './components/AdminSetup';
 import AdminDashboard from './components/AdminDashboard';
@@ -34,6 +34,14 @@ const App: React.FC = () => {
   const [notification, setNotification] = useState<{message: string, type: 'info' | 'error'} | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [useFirebase, setUseFirebase] = useState(false);
+
+  // Ref to always have the latest gameState (avoids stale closures)
+  const gameStateRef = useRef<GameState | null>(null);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
 
   // 세션 저장
   const saveSession = useCallback((data: SessionData | null) => {
@@ -165,6 +173,34 @@ const App: React.FC = () => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 3000);
   };
+
+  // 팀 업데이트 함수 (Firebase 부분 업데이트 사용 - 경쟁 상태 방지)
+  const updateTeam = useCallback(async (teamId: string, update: Partial<Team>) => {
+    const currentState = gameStateRef.current;
+    if (!currentState) return;
+
+    const teams = currentState.teams || [];
+    const teamIndex = teams.findIndex(t => t.id === teamId);
+    if (teamIndex === -1) return;
+
+    // Firebase 사용 중이고 PUSH 관련 업데이트인 경우 부분 업데이트 사용
+    if (useFirebase && (update.hasSubmittedPushes !== undefined || update.currentRoundPushes !== undefined)) {
+      try {
+        await updateTeamPartial(currentState.id, teamIndex, update);
+        // Firebase가 자동으로 구독을 통해 상태를 업데이트해줌
+        console.log('팀 부분 업데이트 성공:', teamId, update);
+      } catch (error) {
+        console.error('팀 부분 업데이트 실패:', error);
+        showNotification('제출 실패. 다시 시도해주세요.', 'error');
+      }
+    } else {
+      // 기존 방식: 전체 상태 업데이트
+      const newTeams = teams.map(t =>
+        t.id === teamId ? { ...t, ...update } : t
+      );
+      updateGameState({ ...currentState, teams: newTeams });
+    }
+  }, [updateGameState, useFirebase]);
 
   // 게임 생성
   const createGame = (courseName: string, teamCount: number, rounds: number) => {
@@ -387,12 +423,7 @@ const App: React.FC = () => {
           <TeamSponsorship
             team={currentTeam}
             gameState={gameState}
-            onUpdate={(update) => {
-              const newTeams = teams.map(t =>
-                t.id === currentTeam.id ? { ...t, ...update } : t
-              );
-              updateGameState({ ...gameState, teams: newTeams });
-            }}
+            onUpdate={(update) => updateTeam(currentTeam.id, update)}
           />
         );
       }
@@ -411,12 +442,7 @@ const App: React.FC = () => {
         <TeamPushControl
           team={currentTeam}
           gameState={gameState}
-          onUpdate={(update) => {
-            const newTeams = teams.map(t =>
-              t.id === currentTeam.id ? { ...t, ...update } : t
-            );
-            updateGameState({ ...gameState, teams: newTeams });
-          }}
+          onUpdate={(update) => updateTeam(currentTeam.id, update)}
         />
       );
     }

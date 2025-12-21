@@ -116,6 +116,18 @@ export const updateTeam = async (
   // 실제로는 트랜잭션을 사용하는 것이 좋습니다
 };
 
+// 팀의 특정 필드만 부분 업데이트 (경쟁 상태 방지)
+export const updateTeamPartial = async (
+  gameId: string,
+  teamIndex: number,
+  updates: Partial<Team>
+): Promise<void> => {
+  // 팀 데이터 경로에 직접 업데이트
+  const teamRef = ref(database, `games/${gameId}/teams/${teamIndex}`);
+  const cleanedUpdates = removeUndefined(updates);
+  await update(teamRef, cleanedUpdates);
+};
+
 // 게임 삭제
 export const deleteGame = async (gameId: string): Promise<void> => {
   const gameRef = ref(database, `games/${gameId}`);
