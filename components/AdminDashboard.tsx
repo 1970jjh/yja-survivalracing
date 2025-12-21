@@ -188,7 +188,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // 예: 1등 10칸 → 2등 8칸(-2) → 3등 7칸(-1) → 4등 6칸(-1) → ...
   const handleRunAllocation = () => {
     const currentTeams = gameState.teams || [];
-    const teamsWithRanks = currentTeams.filter(t => teamRanks[t.id]);
+
+    // 순위가 1 이상인 팀 확인
+    const teamsWithRanks = currentTeams.filter(t => teamRanks[t.id] >= 1);
     if (teamsWithRanks.length === 0) {
       alert('최소 1개 팀의 순위를 입력해주세요.');
       return;
@@ -197,16 +199,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const firstPlacePush = totalPushInput;
     const newAllocations: Record<string, number> = {};
 
-    // 순위별로 정렬
-    const sortedTeams = [...currentTeams].sort((a, b) => {
+    // 순위가 입력된 팀만 순위별로 정렬
+    const sortedTeams = [...teamsWithRanks].sort((a, b) => {
       const rankA = teamRanks[a.id] || 999;
       const rankB = teamRanks[b.id] || 999;
       return rankA - rankB;
     });
 
     // 각 팀에 할당량 계산 (1등 기준, 2등은 -2, 그 이후는 -1씩)
-    sortedTeams.forEach((team, idx) => {
-      const rank = teamRanks[team.id] || (idx + 1);
+    sortedTeams.forEach((team) => {
+      const rank = teamRanks[team.id];
       let allocation: number;
 
       if (rank === 1) {
@@ -517,7 +519,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         ) : (
           /* 관리자 대시보드 */
-          <div className="flex-1 flex flex-col p-4 overflow-hidden gap-4">
+          <div className="flex-1 flex flex-col p-4 overflow-y-auto gap-4">
             {/* 타이머 & 제출 현황 */}
             {(gameState.status === 'PUSH_INPUT' || gameState.status === 'REVEALING') && (
               <div className="flex gap-4 items-center justify-center bg-black p-4 rounded-lg">
@@ -642,7 +644,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
 
             {/* 컨트롤 패널 */}
-            <div className="grid grid-cols-4 gap-4 h-[280px]">
+            <div className="grid grid-cols-4 gap-4 min-h-[280px]">
               {/* 1. 게임 진행 */}
               <section className="brutal-card bg-blue-300 p-4 flex flex-col">
                 <div className="flex items-center gap-2 mb-3">
