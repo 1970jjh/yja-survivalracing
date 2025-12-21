@@ -19,6 +19,9 @@ const AdminSetup: React.FC<AdminSetupProps> = ({ onCancel, onCreate, onSelectGam
   const [teamCount, setTeamCount] = useState(2);
   const [rounds, setRounds] = useState(3);
 
+  // 안전한 기본값
+  const games = activeGames || [];
+
   const handleUnlock = () => {
     if (password === ADMIN_PASSWORD) {
       setIsUnlocked(true);
@@ -78,8 +81,8 @@ const AdminSetup: React.FC<AdminSetupProps> = ({ onCancel, onCreate, onSelectGam
 
           {/* 기존 게임 목록 */}
           <div className="space-y-3 mb-6 max-h-[300px] overflow-y-auto">
-            {activeGames.length > 0 ? (
-              activeGames.map(game => {
+            {games.length > 0 ? (
+              games.map(game => {
                 const teams = game.teams || [];
                 return (
                   <div

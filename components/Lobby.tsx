@@ -9,6 +9,9 @@ interface LobbyProps {
 }
 
 const Lobby: React.FC<LobbyProps> = ({ activeGames, onAdminClick, onJoinGame, useFirebase }) => {
+  // 안전한 기본값
+  const games = activeGames || [];
+
   // 게임 상태에 따른 표시 텍스트
   const getStatusText = (status: GameState['status']) => {
     switch (status) {
@@ -52,9 +55,9 @@ const Lobby: React.FC<LobbyProps> = ({ activeGames, onAdminClick, onJoinGame, us
         <div className="flex gap-4 mb-10">
           <button
             onClick={onJoinGame}
-            disabled={activeGames.length === 0}
+            disabled={games.length === 0}
             className={`flex-1 py-3 px-4 rounded-xl border-2 font-bold transition-all ${
-              activeGames.length > 0
+              games.length > 0
                 ? 'border-purple-400 text-purple-600 hover:bg-purple-50'
                 : 'border-slate-200 text-slate-300 cursor-not-allowed'
             }`}
@@ -83,8 +86,8 @@ const Lobby: React.FC<LobbyProps> = ({ activeGames, onAdminClick, onJoinGame, us
             </div>
           </div>
 
-          {activeGames.length > 0 ? (
-            activeGames.map(game => {
+          {games.length > 0 ? (
+            games.map(game => {
               const teams = game.teams || [];
               return (
                 <div
