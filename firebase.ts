@@ -72,6 +72,9 @@ export const deleteGame = async (gameId: string): Promise<void> => {
   await remove(gameRef);
 };
 
+// 게임 삭제 (별칭)
+export const deleteGameState = deleteGame;
+
 // Firebase 연결 상태 확인
 export const isFirebaseConfigured = (): boolean => {
   return firebaseConfig.apiKey !== "YOUR_API_KEY";
