@@ -26,6 +26,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [previewTeamIndex, setPreviewTeamIndex] = useState(0);
 
+  // 안전한 기본값
+  const teams = gameState.teams || [];
+  const racers = gameState.racers || [];
+  const timer = gameState.timer || { isRunning: false, totalSeconds: 180, remainingSeconds: 180 };
+  const revealState = gameState.revealState || { revealedTeamIds: [] };
+
   // 타이머 카운트다운
   useEffect(() => {
     if (!gameState.timer?.isRunning || gameState.timer.remainingSeconds <= 0) return;
@@ -306,8 +312,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   // 제출 현황
-  const submittedCount = gameState.teams.filter(t => t.hasSubmittedPushes).length;
-  const totalTeams = gameState.teams.length;
+  const submittedCount = teams.filter(t => t.hasSubmittedPushes).length;
+  const totalTeams = teams.length;
 
   return (
     <div className="flex flex-col h-screen overflow-hidden select-none font-sans relative bg-slate-100">
@@ -338,7 +344,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
           <div className="flex flex-col">
             <span className="text-[10px] font-black uppercase text-black/60">Teams</span>
-            <span className="text-lg font-black">{gameState.teams.length} / {gameState.maxTeams}</span>
+            <span className="text-lg font-black">{teams.length} / {gameState.maxTeams}</span>
           </div>
           <div className={`px-3 py-1 font-black text-xs uppercase ${
             gameState.status === 'LOBBY' ? 'bg-blue-500 text-white' :
@@ -371,18 +377,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <div className="flex-1 p-8 flex flex-col items-center justify-center bg-black/50 backdrop-blur-md z-50 overflow-hidden">
             <div className="bg-white p-4 rounded-[40px] border-[8px] border-black shadow-[20px_20px_0px_0px_rgba(0,0,0,1)] relative w-[375px] h-[780px] max-h-full overflow-hidden flex flex-col">
               <div className="mt-12 flex justify-center gap-1.5 px-4 overflow-x-auto scrollbar-hide py-2 border-b-4 border-black">
-                {gameState.teams.map((t, idx) => (
+                {teams.map((t, idx) => (
                   <button key={t.id} onClick={() => setPreviewTeamIndex(idx)} className={`px-3 py-1 border-2 border-black font-black text-[10px] transition-all ${previewTeamIndex === idx ? 'bg-yellow-400' : 'bg-white'}`}>
                     {t.name}
                   </button>
                 ))}
               </div>
               <div className="flex-1 overflow-y-auto pt-4 scrollbar-hide">
-                {gameState.status === 'LOBBY' || gameState.status === 'SPONSORING' ? (
-                  <TeamSponsorship team={gameState.teams[previewTeamIndex] || gameState.teams[0]} gameState={gameState} onUpdate={() => {}} />
+                {teams.length > 0 && (gameState.status === 'LOBBY' || gameState.status === 'SPONSORING' ? (
+                  <TeamSponsorship team={teams[previewTeamIndex] || teams[0]} gameState={gameState} onUpdate={() => {}} />
                 ) : (
-                  <TeamPushControl team={gameState.teams[previewTeamIndex] || gameState.teams[0]} gameState={gameState} onUpdate={() => {}} />
-                )}
+                  <TeamPushControl team={teams[previewTeamIndex] || teams[0]} gameState={gameState} onUpdate={() => {}} />
+                ))}
               </div>
             </div>
           </div>
@@ -392,16 +398,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             {/* 타이머 & 제출 현황 */}
             {(gameState.status === 'PUSH_INPUT' || gameState.status === 'REVEALING') && (
               <div className="flex gap-4 items-center justify-center bg-black p-4 rounded-lg">
-                <div className={`text-6xl font-black ${gameState.timer.remainingSeconds <= 30 ? 'text-red-500 animate-pulse' : 'text-yellow-400'}`}>
-                  {formatTime(gameState.timer.remainingSeconds)}
+                <div className={`text-6xl font-black ${timer.remainingSeconds <= 30 ? 'text-red-500 animate-pulse' : 'text-yellow-400'}`}>
+                  {formatTime(timer.remainingSeconds)}
                 </div>
                 <div className="flex flex-col gap-2">
                   <div className="text-white text-sm font-black">
                     제출 현황: <span className="text-yellow-400">{submittedCount}</span> / {totalTeams} 팀
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={toggleTimer} className={`brutal-btn px-4 py-2 text-sm ${gameState.timer.isRunning ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
-                      {gameState.timer.isRunning ? '⏸ 일시정지' : '▶ 재개'}
+                    <button onClick={toggleTimer} className={`brutal-btn px-4 py-2 text-sm ${timer.isRunning ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
+                      {timer.isRunning ? '⏸ 일시정지' : '▶ 재개'}
                     </button>
                     <button onClick={resetTimer} className="brutal-btn bg-gray-500 text-white px-4 py-2 text-sm">
                       🔄 리셋
@@ -423,7 +429,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
               {/* 레이서 트랙 */}
               <div className="flex-1 grid grid-rows-8 h-full gap-1 border-4 border-black bg-slate-300">
-                {gameState.racers.map(racer => (
+                {racers.map(racer => (
                   <div key={racer.id} className="relative flex border-b-2 border-black last:border-b-0 bg-white">
                     <div className="w-24 bg-black flex items-center justify-center flex-shrink-0">
                       <span className="text-white font-black text-xs">TRK {racer.id}</span>
@@ -523,7 +529,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <h3 className="font-black text-sm uppercase">미니게임 순위</h3>
                 </div>
                 <div className="flex-1 overflow-y-auto space-y-1 mb-2">
-                  {gameState.teams.map((team) => (
+                  {teams.map((team) => (
                     <div key={team.id} className="flex gap-2 items-center bg-white/50 p-1 border-2 border-black">
                       <span className="text-[10px] font-black w-8">{team.index}조</span>
                       <input
@@ -550,8 +556,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <h3 className="font-black text-sm uppercase">팀별 PUSH 공개</h3>
                 </div>
                 <div className="flex-1 overflow-y-auto space-y-1 mb-2">
-                  {gameState.teams.map(team => {
-                    const isRevealed = gameState.revealState?.revealedTeamIds?.includes(team.id);
+                  {teams.map(team => {
+                    const isRevealed = revealState.revealedTeamIds?.includes(team.id);
                     const pushSummary = team.currentRoundPushes.map(p => `${p.racerId}번:${p.count > 0 ? '+' : ''}${p.count}`).join(', ');
 
                     return (
@@ -607,7 +613,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <div className="mb-8">
               <h2 className="text-xl font-black mb-4">레이서 최종 순위</h2>
               <div className="grid grid-cols-4 gap-4">
-                {[...gameState.racers]
+                {[...racers]
                   .sort((a, b) => {
                     if (a.isEliminated && !b.isEliminated) return 1;
                     if (!a.isEliminated && b.isEliminated) return -1;
@@ -628,7 +634,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <div>
               <h2 className="text-xl font-black mb-4">팀별 수익</h2>
               <div className="space-y-2">
-                {[...gameState.teams]
+                {[...teams]
                   .sort((a, b) => b.totalPoints - a.totalPoints)
                   .map((team, idx) => (
                     <div key={team.id} className={`p-4 border-4 border-black flex justify-between items-center ${idx === 0 ? 'bg-yellow-400' : 'bg-white'}`}>
