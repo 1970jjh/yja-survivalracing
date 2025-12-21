@@ -230,25 +230,9 @@ const App: React.FC = () => {
     setView('ADMIN_DASHBOARD');
   };
 
-  // 팀 슬롯 선택
+  // 팀 슬롯 선택 (선택만 하고 TeamJoin에서 처리)
   const handleSelectTeamSlot = (teamIndex: number) => {
     setSelectedTeamIndex(teamIndex);
-
-    // 이미 해당 슬롯에 팀이 있으면 바로 대시보드로
-    const teams = gameState?.teams || [];
-    const existingTeam = teams.find(t => t.index === teamIndex);
-
-    if (existingTeam && existingTeam.name) {
-      setMyTeamId(existingTeam.id);
-      setView('TEAM_DASHBOARD');
-      saveSession({
-        gameId: currentGameId || '',
-        teamId: existingTeam.id,
-        teamIndex: teamIndex,
-        view: 'TEAM_DASHBOARD'
-      });
-      showNotification(`${teamIndex}조 "${existingTeam.name}" 팀으로 접속했습니다!`, 'info');
-    }
   };
 
   // 팀 참가 (새 팀 등록 또는 업데이트)
