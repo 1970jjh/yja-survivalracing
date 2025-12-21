@@ -1,6 +1,30 @@
 import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, set, onValue, update, remove, DatabaseReference } from 'firebase/database';
-import { GameState } from './types';
+import { GameState, Team } from './types';
+
+// 팀 데이터 정규화 (undefined 배열을 빈 배열로 변환)
+const normalizeTeam = (team: any): Team => ({
+  id: team.id || '',
+  index: team.index || 0,
+  name: team.name || '',
+  slogan: team.slogan || '',
+  members: team.members || [],
+  sponsorships: team.sponsorships || [],
+  currentRoundPushes: team.currentRoundPushes || [],
+  hasSubmittedPushes: team.hasSubmittedPushes || false,
+  totalPushAllowance: team.totalPushAllowance || 0,
+  totalPoints: team.totalPoints || 0,
+  miniGameRank: team.miniGameRank
+});
+
+// 게임 상태 정규화 (Firebase에서 받은 데이터 안전하게 변환)
+const normalizeGameState = (data: any): GameState => ({
+  ...data,
+  teams: (data.teams || []).map(normalizeTeam),
+  racers: data.racers || [],
+  timer: data.timer || { isRunning: false, totalSeconds: 180, remainingSeconds: 180 },
+  revealState: data.revealState || { revealedTeamIds: [] }
+});
 
 // Firebase 설정
 const firebaseConfig = {
@@ -31,7 +55,7 @@ export const subscribeToGame = (
   const gameRef = ref(database, `games/${gameId}`);
   const unsubscribe = onValue(gameRef, (snapshot) => {
     const data = snapshot.val();
-    callback(data);
+    callback(data ? normalizeGameState(data) : null);
   });
   return unsubscribe;
 };
@@ -45,9 +69,11 @@ export const subscribeToActiveGames = (
     try {
       const data = snapshot.val();
       if (data) {
-        const games = Object.values(data) as GameState[];
-        // FINISHED가 아닌 게임만 필터링 (안전하게 체크)
-        const activeGames = games.filter(g => g && g.status && g.status !== 'FINISHED');
+        const games = Object.values(data) as any[];
+        // FINISHED가 아닌 게임만 필터링하고 정규화 (안전하게 체크)
+        const activeGames = games
+          .filter(g => g && g.status && g.status !== 'FINISHED')
+          .map(normalizeGameState);
         callback(activeGames);
       } else {
         callback([]);
