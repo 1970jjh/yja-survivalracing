@@ -190,8 +190,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // 타이머 일시정지/재개
   const toggleTimer = () => {
     const newTimer: TimerState = {
-      ...gameState.timer,
-      isRunning: !gameState.timer.isRunning
+      ...timer,
+      isRunning: !timer.isRunning
     };
     updateState({ ...gameState, timer: newTimer });
   };
@@ -227,13 +227,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         ...gameState,
         teams: updatedTeams,
         status: 'REVEALING',
-        timer: { ...gameState.timer, isRunning: false }
+        timer: { ...timer, isRunning: false }
       });
     } else {
       updateState({
         ...gameState,
         status: 'REVEALING',
-        timer: { ...gameState.timer, isRunning: false }
+        timer: { ...timer, isRunning: false }
       });
     }
   };
@@ -264,8 +264,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     });
 
     // 공개된 팀 목록에 추가
+    const currentRevealedIds = gameState.revealState?.revealedTeamIds || [];
     const newRevealState: RevealState = {
-      revealedTeamIds: [...gameState.revealState.revealedTeamIds, teamId],
+      revealedTeamIds: [...currentRevealedIds, teamId],
       currentRevealingTeamId: teamId
     };
 
@@ -628,7 +629,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <div className="flex-1 overflow-y-auto space-y-1 mb-2">
                   {teams.map(team => {
                     const isRevealed = revealState.revealedTeamIds?.includes(team.id);
-                    const pushSummary = team.currentRoundPushes.map(p => `${p.racerId}번:${p.count > 0 ? '+' : ''}${p.count}`).join(', ');
+                    const currentPushes = team.currentRoundPushes || [];
+                    const pushSummary = currentPushes.map(p => `${p.racerId}번:${p.count > 0 ? '+' : ''}${p.count}`).join(', ');
 
                     return (
                       <div key={team.id} className={`p-2 border-2 border-black flex justify-between items-center ${isRevealed ? 'bg-green-200' : team.hasSubmittedPushes ? 'bg-yellow-100' : 'bg-white'}`}>
@@ -724,7 +726,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           {(team.totalPoints / 100000000).toFixed(1)}억원
                         </div>
                         <div className="text-xs text-black/60">
-                          스폰: {team.sponsorships.map(s => `${s.racerId}번(${s.amount}천만)`).join(', ')}
+                          스폰: {(team.sponsorships || []).map(s => `${s.racerId}번(${s.amount}천만)`).join(', ') || '없음'}
                         </div>
                       </div>
                     </div>
