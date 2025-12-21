@@ -162,8 +162,11 @@ const App: React.FC = () => {
   const handleJoinTeam = (teamData: Partial<Team>) => {
     if (!gameState) return;
 
+    // 안전한 기본값
+    const teams = gameState.teams || [];
+
     // 이미 존재하는 팀인지 확인 (재접속용)
-    const existingTeam = gameState.teams.find(t => t.name === teamData.name);
+    const existingTeam = teams.find(t => t.name === teamData.name);
     if (existingTeam) {
       setMyTeamId(existingTeam.id);
       setCurrentGameId(gameState.id);
@@ -173,14 +176,14 @@ const App: React.FC = () => {
     }
 
     // 팀 수 제한 확인
-    if (gameState.teams.length >= gameState.maxTeams) {
+    if (teams.length >= gameState.maxTeams) {
       showNotification('최대 팀 수에 도달했습니다.', 'error');
       return;
     }
 
     const newTeam: Team = {
       id: Math.random().toString(36).substr(2, 9),
-      index: gameState.teams.length + 1,
+      index: teams.length + 1,
       name: teamData.name || '',
       slogan: teamData.slogan || '',
       members: teamData.members || [],
@@ -191,7 +194,7 @@ const App: React.FC = () => {
       totalPoints: 0
     };
 
-    const updatedState = { ...gameState, teams: [...gameState.teams, newTeam] };
+    const updatedState = { ...gameState, teams: [...teams, newTeam] };
     updateGameState(updatedState);
     setMyTeamId(newTeam.id);
     setCurrentGameId(gameState.id);
@@ -206,7 +209,7 @@ const App: React.FC = () => {
     setView('TEAM_JOIN');
   };
 
-  const currentTeam = gameState?.teams.find(t => t.id === myTeamId);
+  const currentTeam = gameState?.teams?.find(t => t.id === myTeamId);
 
   // 라우팅 로직
   const renderContent = () => {
@@ -273,6 +276,9 @@ const App: React.FC = () => {
         return null;
       }
 
+      // 안전한 기본값
+      const teams = gameState.teams || [];
+
       // 상태에 따른 화면 분기
       if (gameState.status === 'LOBBY' || gameState.status === 'SPONSORING') {
         return (
@@ -280,7 +286,7 @@ const App: React.FC = () => {
             team={currentTeam}
             gameState={gameState}
             onUpdate={(update) => {
-              const newTeams = gameState.teams.map(t =>
+              const newTeams = teams.map(t =>
                 t.id === currentTeam.id ? { ...t, ...update } : t
               );
               updateGameState({ ...gameState, teams: newTeams });
@@ -294,7 +300,7 @@ const App: React.FC = () => {
           team={currentTeam}
           gameState={gameState}
           onUpdate={(update) => {
-            const newTeams = gameState.teams.map(t =>
+            const newTeams = teams.map(t =>
               t.id === currentTeam.id ? { ...t, ...update } : t
             );
             updateGameState({ ...gameState, teams: newTeams });

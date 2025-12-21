@@ -11,11 +11,15 @@ interface TeamPushControlProps {
 const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUpdate }) => {
   const lastSentRef = useRef<string>("");
   const [pushes, setPushes] = useState<number[]>(new Array(8).fill(0));
-  
+
+  // 안전한 기본값
+  const currentRoundPushes = team.currentRoundPushes || [];
+  const racers = gameState.racers || [];
+
   useEffect(() => {
-    if (team.currentRoundPushes.length > 0 && !team.hasSubmittedPushes) {
+    if (currentRoundPushes.length > 0 && !team.hasSubmittedPushes) {
       const newPushes = new Array(8).fill(0);
-      team.currentRoundPushes.forEach(p => {
+      currentRoundPushes.forEach(p => {
         newPushes[p.racerId - 1] = p.count;
       });
       const pushStr = JSON.stringify(newPushes);
@@ -24,7 +28,7 @@ const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUp
         lastSentRef.current = pushStr;
       }
     }
-  }, [team.currentRoundPushes, team.hasSubmittedPushes]);
+  }, [currentRoundPushes, team.hasSubmittedPushes]);
 
   const totalUsed = pushes.reduce((a, b) => a + Math.abs(b), 0);
   const remaining = team.totalPushAllowance - totalUsed;
@@ -88,17 +92,20 @@ const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUp
           <div className="brutal-card p-6">
             <h3 className="text-xl font-brutal uppercase mb-6 underline decoration-4 decoration-yellow-400">Tactical Summary</h3>
             <div className="space-y-4">
-              {team.currentRoundPushes.map((p, i) => (
-                <div key={i} className="flex justify-between items-center p-4 border-2 border-black bg-white">
-                   <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 border-2 border-black" style={{ backgroundColor: gameState.racers[p.racerId-1].color }}></div>
-                      <span className="font-black text-lg">TRK {p.racerId}</span>
-                   </div>
-                   <span className={`text-3xl font-racing font-black ${p.count > 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                    {p.count > 0 ? '+' : ''}{p.count}
-                  </span>
-                </div>
-              ))}
+              {currentRoundPushes.map((p, i) => {
+                const racer = racers[p.racerId - 1];
+                return (
+                  <div key={i} className="flex justify-between items-center p-4 border-2 border-black bg-white">
+                     <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 border-2 border-black" style={{ backgroundColor: racer?.color || '#888' }}></div>
+                        <span className="font-black text-lg">TRK {p.racerId}</span>
+                     </div>
+                     <span className={`text-3xl font-racing font-black ${p.count > 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                      {p.count > 0 ? '+' : ''}{p.count}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -131,7 +138,7 @@ const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUp
         </div>
 
         <div className="space-y-4 mb-10">
-           {gameState.racers.map((racer, i) => (
+           {racers.map((racer, i) => (
              <div key={racer.id} className={`flex items-center gap-3 p-3 brutal-card transition-all ${pushes[i] !== 0 ? 'bg-white border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]' : 'bg-white/80'}`}>
                 <div className="w-16 flex flex-col items-center gap-1 border-r-2 border-black pr-2">
                   <div className="w-10 h-10 border-4 border-black flex items-center justify-center font-black text-white text-xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]" 
