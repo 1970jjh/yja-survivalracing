@@ -25,12 +25,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [pendingAllocations, setPendingAllocations] = useState<Record<string, number>>({});
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [previewTeamIndex, setPreviewTeamIndex] = useState(0);
+  const [showMiniGamePopup, setShowMiniGamePopup] = useState(true);
 
   // 안전한 기본값
   const teams = gameState.teams || [];
   const racers = gameState.racers || [];
   const timer = gameState.timer || { isRunning: false, totalSeconds: 180, remainingSeconds: 180 };
   const revealState = gameState.revealState || { revealedTeamIds: [] };
+
+  // 미니게임 상태가 되면 팝업 표시
+  useEffect(() => {
+    if (gameState.status === 'MINI_GAME') {
+      setShowMiniGamePopup(true);
+    }
+  }, [gameState.status]);
 
   // 타이머 카운트다운
   useEffect(() => {
@@ -592,9 +600,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       </div>
 
       {/* 미니게임 팝업 */}
-      {gameState.status === 'MINI_GAME' && (
+      {gameState.status === 'MINI_GAME' && showMiniGamePopup && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-          <div className="brutal-card bg-yellow-400 p-12 text-center animate-bounce">
+          <div className="brutal-card bg-yellow-400 p-12 text-center animate-bounce relative">
+            {/* X 버튼 */}
+            <button
+              onClick={() => setShowMiniGamePopup(false)}
+              className="absolute top-2 right-2 w-10 h-10 bg-black text-white rounded-full font-black text-xl hover:bg-red-500 transition-colors"
+            >
+              ✕
+            </button>
             <h1 className="text-6xl font-black mb-4">🎮</h1>
             <h2 className="text-4xl font-black mb-2">#{gameState.currentRound}R MINI GAME</h2>
             <p className="text-lg font-black text-black/60">오프라인 미니게임을 진행해주세요!</p>

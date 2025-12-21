@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { GameState, Team, TimerState, RevealState } from './types';
 import { RACER_COLORS } from './constants';
-import { saveGameState, subscribeToActiveGames, isFirebaseConfigured } from './firebase';
+import { saveGameState, subscribeToActiveGames, isFirebaseConfigured, deleteGameState } from './firebase';
 import Lobby from './components/Lobby';
 import AdminSetup from './components/AdminSetup';
 import AdminDashboard from './components/AdminDashboard';
@@ -13,15 +13,53 @@ import Notification from './components/Notification';
 // 로컬 동기화용 BroadcastChannel (같은 브라우저 탭 간)
 const SYNC_CHANNEL = new BroadcastChannel('survival_racing_sync');
 
+// 세션 저장 키
+const SESSION_KEY = 'survival_racing_session';
+
+interface SessionData {
+  gameId: string;
+  teamId: string;
+  teamIndex: number;
+  view: string;
+}
+
 const App: React.FC = () => {
   const [view, setView] = useState<'HOME' | 'ADMIN_SETUP' | 'ADMIN_DASHBOARD' | 'TEAM_JOIN' | 'TEAM_DASHBOARD' | 'ADMIN_PREVIEW_USER'>('HOME');
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [activeGames, setActiveGames] = useState<GameState[]>([]);
   const [myTeamId, setMyTeamId] = useState<string | null>(null);
   const [currentGameId, setCurrentGameId] = useState<string | null>(null);
+  const [selectedTeamIndex, setSelectedTeamIndex] = useState<number | null>(null);
   const [notification, setNotification] = useState<{message: string, type: 'info' | 'error'} | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [useFirebase, setUseFirebase] = useState(false);
+
+  // 세션 저장
+  const saveSession = useCallback((data: SessionData | null) => {
+    if (data) {
+      localStorage.setItem(SESSION_KEY, JSON.stringify(data));
+    } else {
+      localStorage.removeItem(SESSION_KEY);
+    }
+  }, []);
+
+  // 세션 복원
+  useEffect(() => {
+    const savedSession = localStorage.getItem(SESSION_KEY);
+    if (savedSession) {
+      try {
+        const session: SessionData = JSON.parse(savedSession);
+        setCurrentGameId(session.gameId);
+        setMyTeamId(session.teamId);
+        setSelectedTeamIndex(session.teamIndex);
+        if (session.view === 'TEAM_DASHBOARD' || session.view === 'TEAM_JOIN') {
+          setView(session.view as 'TEAM_DASHBOARD' | 'TEAM_JOIN');
+        }
+      } catch (e) {
+        console.error('세션 복원 실패:', e);
+      }
+    }
+  }, []);
 
   // Firebase 설정 확인
   useEffect(() => {
@@ -98,7 +136,15 @@ const App: React.FC = () => {
     // 업데이트 시간 갱신
     const updatedState = { ...newState, updatedAt: Date.now() };
     setGameState(updatedState);
-    setActiveGames([updatedState]);
+    setActiveGames(prev => {
+      const idx = prev.findIndex(g => g.id === updatedState.id);
+      if (idx >= 0) {
+        const newGames = [...prev];
+        newGames[idx] = updatedState;
+        return newGames;
+      }
+      return [...prev, updatedState];
+    });
 
     if (useFirebase) {
       try {
@@ -158,54 +204,112 @@ const App: React.FC = () => {
     showNotification(`"${courseName}" 게임이 생성되었습니다!`, 'info');
   };
 
-  // 팀 참가
-  const handleJoinTeam = (teamData: Partial<Team>) => {
-    if (!gameState) return;
-
-    // 안전한 기본값
-    const teams = gameState.teams || [];
-
-    // 이미 존재하는 팀인지 확인 (재접속용)
-    const existingTeam = teams.find(t => t.name === teamData.name);
-    if (existingTeam) {
-      setMyTeamId(existingTeam.id);
-      setCurrentGameId(gameState.id);
-      setView('TEAM_DASHBOARD');
-      showNotification(`"${existingTeam.name}" 팀으로 재접속했습니다!`, 'info');
-      return;
+  // 게임 삭제
+  const handleDeleteGame = async (gameId: string) => {
+    if (useFirebase) {
+      try {
+        await deleteGameState(gameId);
+        setActiveGames(prev => prev.filter(g => g.id !== gameId));
+        showNotification('게임이 삭제되었습니다.', 'info');
+      } catch (error) {
+        console.error('게임 삭제 실패:', error);
+        showNotification('게임 삭제에 실패했습니다.', 'error');
+      }
+    } else {
+      localStorage.removeItem('survival_racing_state');
+      setGameState(null);
+      setActiveGames([]);
+      showNotification('게임이 삭제되었습니다.', 'info');
     }
-
-    // 팀 수 제한 확인
-    if (teams.length >= gameState.maxTeams) {
-      showNotification('최대 팀 수에 도달했습니다.', 'error');
-      return;
-    }
-
-    const newTeam: Team = {
-      id: Math.random().toString(36).substr(2, 9),
-      index: teams.length + 1,
-      name: teamData.name || '',
-      slogan: teamData.slogan || '',
-      members: teamData.members || [],
-      sponsorships: [],
-      currentRoundPushes: [],
-      hasSubmittedPushes: false,
-      totalPushAllowance: 0,
-      totalPoints: 0
-    };
-
-    const updatedState = { ...gameState, teams: [...teams, newTeam] };
-    updateGameState(updatedState);
-    setMyTeamId(newTeam.id);
-    setCurrentGameId(gameState.id);
-    setView('TEAM_DASHBOARD');
-    showNotification(`"${newTeam.name}" 팀 참가 완료!`, 'info');
   };
 
-  // 게임 선택
+  // 관리자 게임 선택 (대시보드로 이동)
+  const handleAdminSelectGame = (game: GameState) => {
+    setGameState(game);
+    setCurrentGameId(game.id);
+    setView('ADMIN_DASHBOARD');
+  };
+
+  // 팀 슬롯 선택
+  const handleSelectTeamSlot = (teamIndex: number) => {
+    setSelectedTeamIndex(teamIndex);
+
+    // 이미 해당 슬롯에 팀이 있으면 바로 대시보드로
+    const teams = gameState?.teams || [];
+    const existingTeam = teams.find(t => t.index === teamIndex);
+
+    if (existingTeam && existingTeam.name) {
+      setMyTeamId(existingTeam.id);
+      setView('TEAM_DASHBOARD');
+      saveSession({
+        gameId: currentGameId || '',
+        teamId: existingTeam.id,
+        teamIndex: teamIndex,
+        view: 'TEAM_DASHBOARD'
+      });
+      showNotification(`${teamIndex}조 "${existingTeam.name}" 팀으로 접속했습니다!`, 'info');
+    }
+  };
+
+  // 팀 참가 (새 팀 등록 또는 업데이트)
+  const handleJoinTeam = (teamData: Partial<Team>, teamIndex: number) => {
+    if (!gameState) return;
+
+    const teams = gameState.teams || [];
+
+    // 해당 인덱스에 이미 팀이 있는지 확인
+    const existingTeamIndex = teams.findIndex(t => t.index === teamIndex);
+
+    let newTeam: Team;
+    let updatedTeams: Team[];
+
+    if (existingTeamIndex >= 0) {
+      // 기존 팀 업데이트
+      newTeam = {
+        ...teams[existingTeamIndex],
+        name: teamData.name || '',
+        slogan: teamData.slogan || '',
+        members: teamData.members || []
+      };
+      updatedTeams = teams.map((t, i) => i === existingTeamIndex ? newTeam : t);
+    } else {
+      // 새 팀 생성
+      newTeam = {
+        id: Math.random().toString(36).substr(2, 9),
+        index: teamIndex,
+        name: teamData.name || '',
+        slogan: teamData.slogan || '',
+        members: teamData.members || [],
+        sponsorships: [],
+        currentRoundPushes: [],
+        hasSubmittedPushes: false,
+        totalPushAllowance: 0,
+        totalPoints: 0
+      };
+      updatedTeams = [...teams, newTeam];
+    }
+
+    const updatedState = { ...gameState, teams: updatedTeams };
+    updateGameState(updatedState);
+    setMyTeamId(newTeam.id);
+    setView('TEAM_DASHBOARD');
+
+    // 세션 저장
+    saveSession({
+      gameId: gameState.id,
+      teamId: newTeam.id,
+      teamIndex: teamIndex,
+      view: 'TEAM_DASHBOARD'
+    });
+
+    showNotification(`${teamIndex}조 "${newTeam.name}" 팀 참가 완료!`, 'info');
+  };
+
+  // 참가자 게임 선택
   const handleSelectGame = (game: GameState) => {
     setGameState(game);
     setCurrentGameId(game.id);
+    setSelectedTeamIndex(null); // 팀 선택 초기화
     setView('TEAM_JOIN');
   };
 
@@ -237,6 +341,9 @@ const App: React.FC = () => {
         <AdminSetup
           onCancel={() => setView('HOME')}
           onCreate={createGame}
+          onSelectGame={handleAdminSelectGame}
+          onDeleteGame={handleDeleteGame}
+          activeGames={activeGames}
         />
       );
     }
@@ -265,7 +372,16 @@ const App: React.FC = () => {
         <TeamJoin
           gameState={gameState}
           onJoin={handleJoinTeam}
-          onBack={() => setView('HOME')}
+          onBack={() => {
+            if (selectedTeamIndex !== null) {
+              setSelectedTeamIndex(null);
+            } else {
+              setView('HOME');
+              saveSession(null);
+            }
+          }}
+          selectedTeamIndex={selectedTeamIndex}
+          onSelectTeamSlot={handleSelectTeamSlot}
         />
       );
     }
