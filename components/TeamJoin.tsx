@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GameState, UserRole, TeamMember, Team } from '../types';
 
 interface TeamJoinProps {
@@ -20,15 +20,33 @@ const TeamJoin: React.FC<TeamJoinProps> = ({ gameState, onJoin, onBack, selected
   const teams = gameState?.teams || [];
   const maxTeams = gameState?.maxTeams || 2;
 
-  // 팀 슬롯이 이미 사용 중인지 확인
-  const isSlotTaken = (index: number) => {
-    return teams.some((t: Team) => t.index === index && t.name && t.name.trim() !== '');
-  };
-
   // 해당 슬롯의 팀 정보 가져오기
   const getTeamAtSlot = (index: number) => {
     return teams.find((t: Team) => t.index === index);
   };
+
+  // 팀 정보가 완성되었는지 확인
+  const isTeamComplete = (team: Team | undefined) => {
+    if (!team) return false;
+    return team.name && team.name.trim() !== '' &&
+           team.slogan && team.slogan.trim() !== '' &&
+           team.members && team.members.length > 0 &&
+           team.members.every(m => m.name && m.name.trim() !== '');
+  };
+
+  // 선택된 팀의 정보로 폼 초기화
+  useEffect(() => {
+    if (selectedTeamIndex) {
+      const existingTeam = getTeamAtSlot(selectedTeamIndex);
+      if (existingTeam && isTeamComplete(existingTeam)) {
+        setTeamName(existingTeam.name || '');
+        setSlogan(existingTeam.slogan || '');
+        if (existingTeam.members && existingTeam.members.length > 0) {
+          setMembers(existingTeam.members);
+        }
+      }
+    }
+  }, [selectedTeamIndex, teams]);
 
   const handleMemberChange = (index: number, name: string) => {
     const newMembers = [...members];
@@ -36,7 +54,7 @@ const TeamJoin: React.FC<TeamJoinProps> = ({ gameState, onJoin, onBack, selected
     setMembers(newMembers);
   };
 
-  const isFormValid = teamName && slogan && members.every(m => m.name.trim() !== '');
+  const isFormValid = teamName.trim() !== '' && slogan.trim() !== '' && members.every(m => m.name.trim() !== '');
 
   // 팀 슬롯 선택 화면
   if (selectedTeamIndex === null || selectedTeamIndex === undefined) {
@@ -51,30 +69,30 @@ const TeamJoin: React.FC<TeamJoinProps> = ({ gameState, onJoin, onBack, selected
           </div>
 
           <p className="text-sm text-center text-slate-500 mb-6">
-            참여할 팀 번호를 선택하세요
+            본인의 팀 번호를 선택하세요
           </p>
 
           <div className="grid grid-cols-3 gap-3 mb-6 max-h-[400px] overflow-y-auto">
             {Array.from({ length: maxTeams }, (_, i) => {
               const teamIndex = i + 1;
-              const taken = isSlotTaken(teamIndex);
               const existingTeam = getTeamAtSlot(teamIndex);
+              const isComplete = isTeamComplete(existingTeam);
 
               return (
                 <button
                   key={teamIndex}
                   onClick={() => onSelectTeamSlot(teamIndex)}
                   className={`p-4 rounded-xl border-2 font-bold transition-all ${
-                    taken
+                    isComplete
                       ? 'border-green-400 bg-green-50 text-green-600'
                       : 'border-slate-200 bg-white text-slate-800 hover:border-blue-400 hover:bg-blue-50'
                   }`}
                 >
                   <div className="text-2xl font-black">{teamIndex}조</div>
-                  {taken && existingTeam ? (
+                  {isComplete && existingTeam ? (
                     <div className="text-[10px] mt-1 truncate">{existingTeam.name}</div>
                   ) : (
-                    <div className="text-[10px] mt-1 text-slate-400">빈 자리</div>
+                    <div className="text-[10px] mt-1 text-orange-500">미등록</div>
                   )}
                 </button>
               );
@@ -85,13 +103,59 @@ const TeamJoin: React.FC<TeamJoinProps> = ({ gameState, onJoin, onBack, selected
     );
   }
 
-  // 팀 정보 입력 화면
+  // 선택된 팀 정보
+  const selectedTeam = getTeamAtSlot(selectedTeamIndex);
+  const isSelectedTeamComplete = isTeamComplete(selectedTeam);
+
+  // 팀 정보가 이미 완성된 경우 - 바로 입장 화면
+  if (isSelectedTeamComplete && selectedTeam) {
+    return (
+      <div className="flex flex-col items-center min-h-screen bg-slate-900 p-4 pb-10">
+        <div className="bg-white rounded-3xl p-8 w-full max-w-md text-slate-900 shadow-2xl">
+          <button onClick={onBack} className="text-slate-400 mb-4 font-bold">← 팀 선택으로</button>
+
+          <div className="flex flex-col items-center mb-6">
+            <div className="w-20 h-20 bg-green-400 rounded-full flex items-center justify-center mb-3 border-4 border-black">
+              <span className="text-3xl font-black">{selectedTeamIndex}조</span>
+            </div>
+            <h1 className="text-2xl font-black text-slate-800">{selectedTeam.name}</h1>
+            <p className="text-sm text-slate-500 italic">"{selectedTeam.slogan}"</p>
+          </div>
+
+          <div className="bg-slate-50 rounded-xl p-4 mb-6">
+            <h3 className="text-xs font-bold text-slate-400 uppercase mb-3">팀 멤버</h3>
+            <div className="grid grid-cols-2 gap-2">
+              {selectedTeam.members?.map((m, i) => (
+                <div key={i} className="bg-white p-2 rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-blue-600 font-bold block">{m.role}</span>
+                  <span className="text-sm font-bold">{m.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <button
+            onClick={() => onJoin({
+              name: selectedTeam.name,
+              slogan: selectedTeam.slogan,
+              members: selectedTeam.members
+            }, selectedTeamIndex)}
+            className="w-full py-4 rounded-xl font-bold bg-green-500 text-white shadow-lg hover:bg-green-600 transition-all"
+          >
+            🚀 {selectedTeamIndex}조로 입장하기
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 팀 정보 입력 화면 (첫 번째 사람이 입력)
   return (
     <div className="flex flex-col items-center min-h-screen bg-slate-900 p-4 pb-10">
       <div className="bg-white rounded-3xl p-8 w-full max-w-md text-slate-900 shadow-2xl overflow-y-auto">
         <button onClick={onBack} className="text-slate-400 mb-4 font-bold">← 팀 선택으로</button>
 
-        <div className="flex flex-col items-center mb-6">
+        <div className="flex flex-col items-center mb-4">
           <div className="w-16 h-16 bg-yellow-400 rounded-full flex items-center justify-center mb-2 border-4 border-black">
             <span className="text-2xl font-black">{selectedTeamIndex}조</span>
           </div>
@@ -99,7 +163,14 @@ const TeamJoin: React.FC<TeamJoinProps> = ({ gameState, onJoin, onBack, selected
           <p className="text-xs text-slate-400">Racing Team Building</p>
         </div>
 
-        <div className="space-y-6">
+        <div className="bg-orange-50 border-2 border-orange-300 rounded-xl p-3 mb-6">
+          <p className="text-xs text-orange-700 font-bold text-center">
+            ⚠️ 아직 {selectedTeamIndex}조의 팀 정보가 등록되지 않았습니다.<br/>
+            팀원 중 한 명이 아래 정보를 입력해주세요.
+          </p>
+        </div>
+
+        <div className="space-y-5">
           <div>
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">1) 팀 명 정하기</label>
             <input
@@ -122,10 +193,10 @@ const TeamJoin: React.FC<TeamJoinProps> = ({ gameState, onJoin, onBack, selected
 
           <div>
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">3) 역할 정하기</label>
-            <div className="space-y-3">
+            <div className="space-y-2">
               {members.map((member, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <div className="w-24 text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded text-center">
+                <div key={i} className="flex items-center gap-2">
+                  <div className="w-20 text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded text-center">
                     {member.role}
                   </div>
                   <input
@@ -140,11 +211,21 @@ const TeamJoin: React.FC<TeamJoinProps> = ({ gameState, onJoin, onBack, selected
           </div>
 
           <button
-            onClick={() => onJoin({ name: teamName, slogan, members }, selectedTeamIndex)}
+            onClick={() => {
+              if (!isFormValid) {
+                alert('팀명, 구호, 모든 역할의 이름을 입력해주세요.');
+                return;
+              }
+              onJoin({ name: teamName, slogan, members }, selectedTeamIndex);
+            }}
             disabled={!isFormValid}
-            className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg transition-all ${isFormValid ? 'bg-blue-600 text-white shadow-blue-200' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
+            className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg transition-all ${
+              isFormValid
+                ? 'bg-blue-600 text-white shadow-blue-200'
+                : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+            }`}
           >
-            JOIN RACE
+            팀 등록 및 입장
           </button>
         </div>
       </div>
