@@ -2,6 +2,24 @@ import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, set, onValue, update, remove, DatabaseReference } from 'firebase/database';
 import { GameState, Team } from './types';
 
+// undefined 값을 재귀적으로 제거 (Firebase는 undefined를 허용하지 않음)
+const removeUndefined = (obj: any): any => {
+  if (obj === null || obj === undefined) return null;
+  if (Array.isArray(obj)) {
+    return obj.map(removeUndefined);
+  }
+  if (typeof obj === 'object') {
+    const cleaned: any = {};
+    for (const key in obj) {
+      if (obj[key] !== undefined) {
+        cleaned[key] = removeUndefined(obj[key]);
+      }
+    }
+    return cleaned;
+  }
+  return obj;
+};
+
 // 팀 데이터 정규화 (undefined 배열을 빈 배열로 변환)
 const normalizeTeam = (team: any): Team => ({
   id: team.id || '',
@@ -14,7 +32,7 @@ const normalizeTeam = (team: any): Team => ({
   hasSubmittedPushes: team.hasSubmittedPushes || false,
   totalPushAllowance: team.totalPushAllowance || 0,
   totalPoints: team.totalPoints || 0,
-  miniGameRank: team.miniGameRank
+  ...(team.miniGameRank !== undefined && { miniGameRank: team.miniGameRank })
 });
 
 // 게임 상태 정규화 (Firebase에서 받은 데이터 안전하게 변환)
@@ -41,10 +59,11 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
-// 게임 상태 저장
+// 게임 상태 저장 (undefined 값 제거 후 저장)
 export const saveGameState = async (gameState: GameState): Promise<void> => {
   const gameRef = ref(database, `games/${gameState.id}`);
-  await set(gameRef, gameState);
+  const cleanedState = removeUndefined(gameState);
+  await set(gameRef, cleanedState);
 };
 
 // 게임 상태 실시간 구독
