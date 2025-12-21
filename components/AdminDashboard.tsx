@@ -461,49 +461,101 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
             {/* 레이스 트랙 */}
             <div className="flex-1 brutal-card p-4 flex flex-col relative overflow-hidden bg-white">
-              {/* 트랙 번호 */}
-              <div className="flex h-8 ml-24 mr-32 mb-1">
-                {Array.from({ length: 19 }, (_, i) => (
-                  <div key={i} className="flex-1 flex items-center justify-center text-[10px] font-black text-black/40">{i + 1}</div>
-                ))}
-                <div className="w-20 flex items-center justify-center text-[10px] font-black bg-black text-yellow-400">FINISH (20)</div>
-              </div>
+              {/* 현재 공개 중인 팀 결과 배너 */}
+              {revealState.currentRevealingTeamId && (
+                <div className="bg-black text-center py-3 mb-2 border-4 border-yellow-400">
+                  {(() => {
+                    const revealingTeam = teams.find(t => t.id === revealState.currentRevealingTeamId);
+                    if (!revealingTeam) return null;
+                    const pushes = revealingTeam.currentRoundPushes || [];
+                    const pushText = pushes
+                      .filter(p => p.count !== 0)
+                      .map(p => `${p.racerId}번 ${p.count > 0 ? '+' : ''}${p.count}칸`)
+                      .join(' / ');
+                    return (
+                      <span className="text-2xl font-black text-red-500">
+                        {revealingTeam.index}조 결과 : {pushText || '없음'}
+                      </span>
+                    );
+                  })()}
+                </div>
+              )}
 
-              {/* 레이서 트랙 */}
-              <div className="flex-1 grid grid-rows-8 h-full gap-1 border-4 border-black bg-slate-300">
-                {racers.map(racer => (
-                  <div key={racer.id} className="relative flex border-b-2 border-black last:border-b-0 bg-white">
-                    <div className="w-24 bg-black flex items-center justify-center flex-shrink-0">
-                      <span className="text-white font-black text-xs">TRK {racer.id}</span>
-                    </div>
-
-                    <div className="flex-1 grid grid-cols-20 relative">
-                      {Array.from({ length: 20 }, (_, i) => (
-                        <div key={i} className={`border-r-2 border-black/10 flex items-center justify-center ${i === 19 ? 'bg-yellow-400/20' : ''}`}></div>
-                      ))}
-
-                      {/* 자동차 */}
-                      <div
-                        className="absolute inset-y-0 transition-all duration-1000 ease-in-out flex items-center z-10"
-                        style={{
-                          left: racer.position > 20 ? '105%' : `${(racer.position / 20) * 100}%`,
-                          transform: `translateX(-50%) ${racer.isEliminated && racer.position > 20 ? 'rotate(90deg) translateY(100px)' : racer.isEliminated ? 'rotate(45deg) scale(0.6)' : ''}`,
-                          opacity: racer.isEliminated && racer.position > 20 ? 0 : racer.isEliminated ? 0.3 : 1
-                        }}
-                      >
-                        <div className="p-1 bg-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                          <CarIcon color={racer.color} size={36} />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 절벽 */}
-                    <div className="w-32 bg-slate-900 relative overflow-hidden flex flex-col items-center justify-center">
-                      <span className="text-[10px] font-black text-red-500 uppercase tracking-tighter">THE CLIFF</span>
-                      <span className="text-[18px]">🏜️</span>
-                    </div>
+              {/* 트랙 번호 - 크고 진하게 */}
+              <div className="flex h-10 border-b-4 border-black bg-yellow-50">
+                <div className="w-20 flex-shrink-0"></div>
+                {Array.from({ length: 20 }, (_, i) => (
+                  <div key={i} className="flex-1 flex items-center justify-center text-lg font-black text-black border-r border-black/30">
+                    {i + 1}
                   </div>
                 ))}
+                <div className="w-24 flex-shrink-0 bg-red-200 flex items-center justify-center">
+                  <span className="text-xs font-black text-red-600">CLIFF</span>
+                </div>
+              </div>
+
+              {/* 레이서 트랙 - 그리드 정렬 */}
+              <div className="flex-1 flex flex-col border-4 border-black border-t-0">
+                {racers.map(racer => {
+                  // 현재 공개된 팀의 이 레이서에 대한 푸시 찾기
+                  const revealingTeam = revealState.currentRevealingTeamId
+                    ? teams.find(t => t.id === revealState.currentRevealingTeamId)
+                    : null;
+                  const currentPush = revealingTeam?.currentRoundPushes?.find(p => p.racerId === racer.id);
+
+                  return (
+                    <div key={racer.id} className="flex-1 flex border-b border-black last:border-b-0 min-h-[50px]">
+                      {/* 트랙 번호 라벨 */}
+                      <div className="w-20 bg-black flex items-center justify-center flex-shrink-0 gap-1">
+                        <span className="text-white font-black text-[10px]">TRK {racer.id}</span>
+                        <div className="w-4 h-4 border border-white" style={{ backgroundColor: racer.color }}></div>
+                      </div>
+
+                      {/* 20칸 그리드 */}
+                      <div className="flex-1 flex relative">
+                        {Array.from({ length: 20 }, (_, i) => (
+                          <div
+                            key={i}
+                            className={`flex-1 border-r border-black/30 ${i === 19 ? 'bg-yellow-100' : ''}`}
+                          ></div>
+                        ))}
+
+                        {/* 자동차 + 푸시 표시 */}
+                        <div
+                          className="absolute inset-y-0 transition-all duration-1000 ease-in-out flex items-center z-10"
+                          style={{
+                            left: racer.position > 20 ? '105%' : `${(racer.position / 20) * 100}%`,
+                            transform: `translateX(-50%) ${racer.isEliminated && racer.position > 20 ? 'rotate(90deg) translateY(100px)' : racer.isEliminated ? 'rotate(45deg) scale(0.6)' : ''}`,
+                            opacity: racer.isEliminated && racer.position > 20 ? 0 : racer.isEliminated ? 0.3 : 1
+                          }}
+                        >
+                          <div className="flex items-center gap-1">
+                            {/* 마이너스 표시 (왼쪽) */}
+                            {currentPush && currentPush.count < 0 && (
+                              <span className="text-blue-600 font-black text-lg">{currentPush.count}</span>
+                            )}
+
+                            {/* 자동차 */}
+                            <div className="p-0.5 bg-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                              <CarIcon color={racer.color} size={28} />
+                            </div>
+
+                            {/* 플러스 표시 (오른쪽) */}
+                            {currentPush && currentPush.count > 0 && (
+                              <span className="text-red-600 font-black text-lg">+{currentPush.count}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 절벽 영역 */}
+                      <div className="w-24 bg-red-200 relative overflow-hidden flex flex-col items-center justify-center flex-shrink-0 border-l-2 border-black">
+                        <span className="text-[8px] font-black text-red-600 uppercase">THE CLIFF</span>
+                        <span className="text-sm">🏜️</span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
