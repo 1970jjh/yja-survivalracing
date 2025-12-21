@@ -431,6 +431,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // 제출 현황
   const submittedCount = teams.filter(t => t.hasSubmittedPushes).length;
   const totalTeams = teams.length;
+  const allTeamsSubmitted = totalTeams > 0 && teams.every(t => t.hasSubmittedPushes || t.totalPushAllowance === 0);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden select-none font-sans relative bg-slate-100">
@@ -522,13 +523,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <div className="flex-1 flex flex-col p-4 overflow-y-auto gap-4">
             {/* 타이머 & 제출 현황 */}
             {(gameState.status === 'PUSH_INPUT' || gameState.status === 'REVEALING') && (
-              <div className="flex gap-4 items-center justify-center bg-black p-4 rounded-lg">
-                <div className={`text-6xl font-black ${timer.remainingSeconds <= 30 ? 'text-red-500 animate-pulse' : 'text-yellow-400'}`}>
-                  {formatTime(timer.remainingSeconds)}
+              <div className={`flex gap-4 items-center justify-center p-4 rounded-lg ${allTeamsSubmitted ? 'bg-green-600' : 'bg-black'}`}>
+                <div className={`text-6xl font-black ${allTeamsSubmitted ? 'text-white' : timer.remainingSeconds <= 30 ? 'text-red-500 animate-pulse' : 'text-yellow-400'}`}>
+                  {allTeamsSubmitted ? '✅ 완료!' : formatTime(timer.remainingSeconds)}
                 </div>
                 <div className="flex flex-col gap-2">
                   <div className="text-white text-sm font-black">
-                    제출 현황: <span className="text-yellow-400">{submittedCount}</span> / {totalTeams} 팀
+                    제출 현황: <span className={allTeamsSubmitted ? 'text-yellow-300' : 'text-yellow-400'}>{submittedCount}</span> / {totalTeams} 팀
+                    {allTeamsSubmitted && <span className="ml-2 text-yellow-300">🎉 모두 제출!</span>}
                   </div>
                   <div className="flex gap-2">
                     <button onClick={toggleTimer} className={`brutal-btn px-4 py-2 text-sm ${timer.isRunning ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
@@ -663,8 +665,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </button>
                   )}
                   {gameState.status === 'PUSH_INPUT' && (
-                    <button onClick={startRevealing} className="brutal-btn flex-1 bg-pink-500 text-white text-sm">
-                      🎯 결과 공개 시작
+                    <button
+                      onClick={startRevealing}
+                      className={`brutal-btn flex-1 text-white text-sm ${allTeamsSubmitted ? 'bg-green-500 animate-pulse ring-4 ring-yellow-400' : 'bg-pink-500'}`}
+                    >
+                      {allTeamsSubmitted ? '✅ 모두 제출! 결과 공개 시작' : '🎯 결과 공개 시작'}
                     </button>
                   )}
                   {gameState.status === 'REVEALING' && (

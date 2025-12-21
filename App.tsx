@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GameState, Team, TimerState, RevealState } from './types';
 import { RACER_COLORS } from './constants';
 import { saveGameState, subscribeToActiveGames, isFirebaseConfigured, deleteGameState } from './firebase';
@@ -34,6 +34,14 @@ const App: React.FC = () => {
   const [notification, setNotification] = useState<{message: string, type: 'info' | 'error'} | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [useFirebase, setUseFirebase] = useState(false);
+
+  // Ref to always have the latest gameState (avoids stale closures)
+  const gameStateRef = useRef<GameState | null>(null);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
 
   // 세션 저장
   const saveSession = useCallback((data: SessionData | null) => {
@@ -165,6 +173,18 @@ const App: React.FC = () => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 3000);
   };
+
+  // 팀 업데이트 함수 (stale closure 방지 - 항상 최신 gameState 사용)
+  const updateTeam = useCallback((teamId: string, update: Partial<Team>) => {
+    const currentState = gameStateRef.current;
+    if (!currentState) return;
+
+    const teams = currentState.teams || [];
+    const newTeams = teams.map(t =>
+      t.id === teamId ? { ...t, ...update } : t
+    );
+    updateGameState({ ...currentState, teams: newTeams });
+  }, [updateGameState]);
 
   // 게임 생성
   const createGame = (courseName: string, teamCount: number, rounds: number) => {
@@ -387,12 +407,7 @@ const App: React.FC = () => {
           <TeamSponsorship
             team={currentTeam}
             gameState={gameState}
-            onUpdate={(update) => {
-              const newTeams = teams.map(t =>
-                t.id === currentTeam.id ? { ...t, ...update } : t
-              );
-              updateGameState({ ...gameState, teams: newTeams });
-            }}
+            onUpdate={(update) => updateTeam(currentTeam.id, update)}
           />
         );
       }
@@ -411,12 +426,7 @@ const App: React.FC = () => {
         <TeamPushControl
           team={currentTeam}
           gameState={gameState}
-          onUpdate={(update) => {
-            const newTeams = teams.map(t =>
-              t.id === currentTeam.id ? { ...t, ...update } : t
-            );
-            updateGameState({ ...gameState, teams: newTeams });
-          }}
+          onUpdate={(update) => updateTeam(currentTeam.id, update)}
         />
       );
     }
