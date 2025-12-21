@@ -9,7 +9,11 @@ interface TeamSponsorshipProps {
 }
 
 const TeamSponsorship: React.FC<TeamSponsorshipProps> = ({ team, gameState, onUpdate }) => {
-  const [spons, setSpons] = useState<number[]>([1, 2, 3]); 
+  const [spons, setSpons] = useState<number[]>([1, 2, 3]);
+
+  // 안전한 기본값
+  const sponsorships = team.sponsorships || [];
+  const members = team.members || [];
 
   const handleSponsorChange = (idx: number, racerId: number) => {
     const newSpons = [...spons];
@@ -37,7 +41,7 @@ const TeamSponsorship: React.FC<TeamSponsorshipProps> = ({ team, gameState, onUp
     onUpdate({ sponsorships });
   };
 
-  const hasSponsorship = team.sponsorships.length > 0;
+  const hasSponsorship = sponsorships.length > 0;
 
   // Consistent Mobile Header
   const MobileHeader = () => (
@@ -71,7 +75,7 @@ const TeamSponsorship: React.FC<TeamSponsorshipProps> = ({ team, gameState, onUp
                <p className="text-xs font-black mt-4 border-2 border-black p-2 bg-white">강사의 신호를 기다려주세요</p>
             </div>
             <div className="grid grid-cols-3 gap-3">
-               {team.sponsorships.map((s, i) => (
+               {sponsorships.map((s, i) => (
                  <div key={i} className="brutal-card bg-white p-4 text-center">
                     <p className="text-[10px] font-black text-black/40 mb-2 uppercase">{s.amount}천만</p>
                     <p className="text-3xl font-brutal text-blue-600 italic">#{s.racerId}</p>
@@ -122,7 +126,7 @@ const TeamSponsorship: React.FC<TeamSponsorshipProps> = ({ team, gameState, onUp
               <span className="text-[10px] font-black bg-black text-white px-2 py-1">LOCKED</span>
            </div>
            <div className="grid grid-cols-2 gap-4">
-              {team.members.map((m, i) => (
+              {members.map((m, i) => (
                 <div key={i} className="brutal-card p-3 bg-white">
                    <span className="text-[9px] font-black text-blue-600 uppercase border-b-2 border-black/10 pb-1 mb-1 block">{m.role}</span>
                    <span className="text-sm font-black text-black">{m.name}</span>
