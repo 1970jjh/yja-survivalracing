@@ -41,6 +41,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [quickTimerRemaining, setQuickTimerRemaining] = useState(0);
   const [quickTimerRunning, setQuickTimerRunning] = useState(false);
 
+  // 최종 결과 단계 (false: 레이서 순위, true: 팀 수익)
+  const [showTeamResults, setShowTeamResults] = useState(false);
+
   // 자동차 소리 재생 함수
   const playCarSound = () => {
     if (carSoundRef.current) {
@@ -278,7 +281,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     updateState({ ...gameState, timer: newTimer });
   };
 
-  // 결과 공개 모드로 전환
+  // 결과 공개 모드로 전환 (INP 최적화: 비동기 처리)
   const startRevealing = () => {
     const currentTeams = gameState.teams || [];
     // 모든 팀이 제출했는지 확인
@@ -288,128 +291,144 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       if (!confirm('아직 제출하지 않은 팀이 있습니다. 그래도 결과 공개를 시작하시겠습니까?')) {
         return;
       }
-      // 미제출 팀 랜덤 배분
-      const updatedTeams = currentTeams.map(team => {
-        if (!team.hasSubmittedPushes && team.totalPushAllowance > 0) {
-          return randomlyDistributePush(team);
-        }
-        return team;
-      });
-      updateState({
-        ...gameState,
-        teams: updatedTeams,
-        status: 'REVEALING',
-        timer: { ...timer, isRunning: false }
+      // 비동기로 상태 업데이트 (INP 최적화)
+      requestAnimationFrame(() => {
+        const updatedTeams = currentTeams.map(team => {
+          if (!team.hasSubmittedPushes && team.totalPushAllowance > 0) {
+            return randomlyDistributePush(team);
+          }
+          return team;
+        });
+        updateState({
+          ...gameState,
+          teams: updatedTeams,
+          status: 'REVEALING',
+          timer: { ...timer, isRunning: false }
+        });
       });
     } else {
-      updateState({
-        ...gameState,
-        status: 'REVEALING',
-        timer: { ...timer, isRunning: false }
+      requestAnimationFrame(() => {
+        updateState({
+          ...gameState,
+          status: 'REVEALING',
+          timer: { ...timer, isRunning: false }
+        });
       });
     }
   };
 
-  // 팀 결과 공개 (한 팀씩)
+  // 팀 결과 공개 (한 팀씩) - INP 최적화
   const revealTeam = (teamId: string) => {
-    const currentTeams = gameState.teams || [];
-    const team = currentTeams.find(t => t.id === teamId);
-    if (!team) return;
-
-    const currentRacers = gameState.racers || [];
-    const currentPushes = team.currentRoundPushes || [];
-    // 레이서 위치 업데이트
-    const newRacers = currentRacers.map(racer => {
-      const push = currentPushes.find(p => p.racerId === racer.id);
-      if (push) {
-        let newPos = racer.position + push.count;
-        let isEliminated = racer.isEliminated;
-        if (newPos > 20) {
-          newPos = 21;
-          isEliminated = true;
-        } else if (newPos < 0) {
-          newPos = 0;
-        }
-        return { ...racer, position: newPos, isEliminated };
-      }
-      return racer;
-    });
-
-    // 공개된 팀 목록에 추가
-    const currentRevealedIds = gameState.revealState?.revealedTeamIds || [];
-    const newRevealState: RevealState = {
-      revealedTeamIds: [...currentRevealedIds, teamId],
-      currentRevealingTeamId: teamId
-    };
-
-    // 자동차 시동 소리 재생
+    // 자동차 시동 소리 즉시 재생
     playCarSound();
 
-    updateState({
-      ...gameState,
-      racers: newRacers,
-      revealState: newRevealState
-    });
-  };
+    // 무거운 작업은 비동기로 처리
+    requestAnimationFrame(() => {
+      const currentTeams = gameState.teams || [];
+      const team = currentTeams.find(t => t.id === teamId);
+      if (!team) return;
 
-  // 다음 라운드로
-  const nextRound = () => {
-    if (gameState.currentRound < gameState.totalRounds) {
-      const newTimer: TimerState = {
-        isRunning: false,
-        totalSeconds: 180,
-        remainingSeconds: 180
+      const currentRacers = gameState.racers || [];
+      const currentPushes = team.currentRoundPushes || [];
+      // 레이서 위치 업데이트
+      const newRacers = currentRacers.map(racer => {
+        const push = currentPushes.find(p => p.racerId === racer.id);
+        if (push) {
+          let newPos = racer.position + push.count;
+          let isEliminated = racer.isEliminated;
+          if (newPos > 20) {
+            newPos = 21;
+            isEliminated = true;
+          } else if (newPos < 0) {
+            newPos = 0;
+          }
+          return { ...racer, position: newPos, isEliminated };
+        }
+        return racer;
+      });
+
+      // 공개된 팀 목록에 추가
+      const currentRevealedIds = gameState.revealState?.revealedTeamIds || [];
+      const newRevealState: RevealState = {
+        revealedTeamIds: [...currentRevealedIds, teamId],
+        currentRevealingTeamId: teamId
       };
-      const newReveal: RevealState = {
-        revealedTeamIds: []
-      };
+
       updateState({
         ...gameState,
-        currentRound: gameState.currentRound + 1,
-        status: 'MINI_GAME',
-        revealState: newReveal,
-        timer: newTimer
+        racers: newRacers,
+        revealState: newRevealState
       });
-      setTeamRanks({});
-      setPendingAllocations({});
-    } else {
-      calculateFinalResults();
-    }
+    });
   };
 
-  // 최종 결과 계산
+  // 다음 라운드로 - INP 최적화
+  const nextRound = () => {
+    requestAnimationFrame(() => {
+      if (gameState.currentRound < gameState.totalRounds) {
+        const newTimer: TimerState = {
+          isRunning: false,
+          totalSeconds: 180,
+          remainingSeconds: 180
+        };
+        const newReveal: RevealState = {
+          revealedTeamIds: []
+        };
+        updateState({
+          ...gameState,
+          currentRound: gameState.currentRound + 1,
+          status: 'MINI_GAME',
+          revealState: newReveal,
+          timer: newTimer
+        });
+        setTeamRanks({});
+        setPendingAllocations({});
+      } else {
+        calculateFinalResults();
+      }
+    });
+  };
+
+  // 최종 결과 계산 - INP 최적화
   const calculateFinalResults = () => {
-    const currentRacers = gameState.racers || [];
-    const currentTeams = gameState.teams || [];
-    const activeRacers = [...currentRacers]
-      .filter(r => !r.isEliminated)
-      .sort((a, b) => b.position - a.position);
+    // 결과 화면 초기화
+    setShowTeamResults(false);
 
-    const teamIncomes = currentTeams.map(team => {
-      let income = 0;
-      const sponsorships = team.sponsorships || [];
-      sponsorships.forEach(s => {
-        const racerIdx = activeRacers.findIndex(r => r.id === s.racerId);
-        if (racerIdx !== -1) {
-          const multiplier = 8 - racerIdx;
-          income += (s.amount * 10000000) * multiplier; // 천만원 단위
-        }
-        // 탈락한 레이서는 수익 0
+    requestAnimationFrame(() => {
+      const currentRacers = gameState.racers || [];
+      const currentTeams = gameState.teams || [];
+      const activeRacers = [...currentRacers]
+        .filter(r => !r.isEliminated)
+        .sort((a, b) => b.position - a.position);
+
+      const teamIncomes = currentTeams.map(team => {
+        let income = 0;
+        const sponsorships = team.sponsorships || [];
+        sponsorships.forEach(s => {
+          const racerIdx = activeRacers.findIndex(r => r.id === s.racerId);
+          if (racerIdx !== -1) {
+            const multiplier = 8 - racerIdx;
+            income += (s.amount * 10000000) * multiplier; // 천만원 단위
+          }
+          // 탈락한 레이서는 수익 0
+        });
+        return { ...team, totalPoints: income };
       });
-      return { ...team, totalPoints: income };
-    });
 
-    updateState({
-      ...gameState,
-      teams: teamIncomes,
-      status: 'RESULTS'
+      updateState({
+        ...gameState,
+        teams: teamIncomes,
+        status: 'RESULTS'
+      });
     });
   };
 
-  // 게임 종료
+  // 게임 종료 - INP 최적화
   const finishGame = () => {
     if (confirm('게임을 완전히 종료하시겠습니까?')) {
-      updateState({ ...gameState, status: 'FINISHED' });
+      requestAnimationFrame(() => {
+        updateState({ ...gameState, status: 'FINISHED' });
+      });
     }
   };
 
@@ -940,15 +959,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* 최종 결과 화면 */}
-      {gameState.status === 'RESULTS' && (
+      {/* 최종 결과 화면 - 레이서 순위 (1단계) */}
+      {gameState.status === 'RESULTS' && !showTeamResults && (
         <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 overflow-auto p-8">
           <div className="brutal-card bg-white p-8 max-w-4xl w-full">
-            <h1 className="text-4xl font-black text-center mb-8">🏆 FINAL RESULTS 🏆</h1>
+            <h1 className="text-4xl font-black text-center mb-8">🏆 레이서 최종 순위 🏆</h1>
 
             {/* 레이서 순위 */}
             <div className="mb-8">
-              <h2 className="text-xl font-black mb-4">레이서 최종 순위</h2>
               <div className="grid grid-cols-4 gap-4">
                 {[...racers]
                   .sort((a, b) => {
@@ -967,34 +985,52 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             </div>
 
-            {/* 팀 수익 */}
-            <div>
-              <h2 className="text-xl font-black mb-4">팀별 수익</h2>
-              <div className="space-y-2">
-                {[...teams]
-                  .sort((a, b) => b.totalPoints - a.totalPoints)
-                  .map((team, idx) => (
-                    <div key={team.id} className={`p-4 border-4 border-black flex justify-between items-center ${idx === 0 ? 'bg-yellow-400' : 'bg-white'}`}>
+            <button onClick={() => setShowTeamResults(true)} className="brutal-btn w-full mt-8 py-6 bg-yellow-400 text-black text-2xl font-black animate-pulse">
+              🏆 최종 순위 결과 보기 🏆
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 최종 결과 화면 - 팀 수익 (2단계) */}
+      {gameState.status === 'RESULTS' && showTeamResults && (
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 overflow-auto p-8">
+          <div className="brutal-card bg-white p-8 max-w-5xl w-full">
+            <h1 className="text-5xl font-black text-center mb-10">🏆 최종 순위 결과 🏆</h1>
+
+            {/* 팀 수익 - 크게 표시 */}
+            <div className="space-y-6">
+              {[...teams]
+                .sort((a, b) => b.totalPoints - a.totalPoints)
+                .map((team, idx) => (
+                  <div key={team.id} className={`p-8 border-4 border-black flex justify-between items-center ${idx === 0 ? 'bg-yellow-400 scale-105' : 'bg-white'}`}>
+                    <div className="flex items-center gap-6">
+                      <span className="font-black text-5xl">{idx + 1}등</span>
                       <div>
-                        <span className="font-black text-2xl mr-4">{idx + 1}등</span>
-                        <span className="font-black text-xl">{team.name}</span>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-black text-2xl text-green-600">
-                          {(team.totalPoints / 100000000).toFixed(1)}억원
-                        </div>
-                        <div className="text-xs text-black/60">
+                        <span className="font-black text-3xl block">{team.index}조 {team.name}</span>
+                        {/* 스폰 기록 - 검정색, 2배 크기 */}
+                        <div className="text-xl font-black text-black mt-2">
                           스폰: {(team.sponsorships || []).map(s => `${s.racerId}번(${s.amount}천만)`).join(', ') || '없음'}
                         </div>
                       </div>
                     </div>
-                  ))}
-              </div>
+                    <div className="text-right">
+                      <div className="font-black text-5xl text-green-600">
+                        {(team.totalPoints / 100000000).toFixed(1)}억원
+                      </div>
+                    </div>
+                  </div>
+                ))}
             </div>
 
-            <button onClick={finishGame} className="brutal-btn w-full mt-8 py-4 bg-black text-white text-xl">
-              🎉 게임 종료
-            </button>
+            <div className="flex gap-4 mt-10">
+              <button onClick={() => setShowTeamResults(false)} className="brutal-btn flex-1 py-4 bg-gray-400 text-white text-xl">
+                ← 레이서 순위 보기
+              </button>
+              <button onClick={finishGame} className="brutal-btn flex-1 py-4 bg-black text-white text-xl">
+                🎉 게임 종료
+              </button>
+            </div>
           </div>
         </div>
       )}
