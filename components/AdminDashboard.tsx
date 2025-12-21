@@ -103,7 +103,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     updateState({ ...gameState, status: 'SPONSORING' });
   };
 
-  // Push 배분 계산
+  // Push 배분 계산 (예: 47 / 6팀 = 1st:12, 2nd:10, 3rd:8, 4th:6, 5th:6, 6th:5)
   const handleRunAllocation = () => {
     const teamsWithRanks = gameState.teams.filter(t => teamRanks[t.id]);
     if (teamsWithRanks.length === 0) {
@@ -111,22 +111,44 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       return;
     }
 
+    const n = gameState.teams.length;
+    const total = totalPushInput;
+    const newAllocations: Record<string, number> = {};
+
+    // 순위별로 정렬
     const sortedTeams = [...gameState.teams].sort((a, b) => {
       const rankA = teamRanks[a.id] || 999;
       const rankB = teamRanks[b.id] || 999;
       return rankA - rankB;
     });
 
-    const n = gameState.teams.length;
-    const sumOfRanks = (n * (n + 1)) / 2;
-    const newAllocations: Record<string, number> = {};
+    // 기본 할당량 계산 (꼴찌 기준)
+    const baseAmount = Math.floor(total / n);
 
-    sortedTeams.forEach((team) => {
-      const rank = teamRanks[team.id] || n;
-      const share = n - rank + 1;
-      const allowance = Math.max(5, Math.round((totalPushInput / sumOfRanks) * share));
+    // 순위별 보너스 계산을 위한 가중치
+    // 1등: n-1점, 2등: n-2점, ..., 꼴찌: 0점
+    const totalBonusPoints = (n * (n - 1)) / 2;
+    const bonusPool = total - (baseAmount * n);
+
+    // 각 팀에 할당량 계산
+    let allocated = 0;
+    sortedTeams.forEach((team, idx) => {
+      const rank = teamRanks[team.id] || (idx + 1);
+      const bonusPoints = n - rank;
+      const bonus = totalBonusPoints > 0
+        ? Math.round((bonusPool / totalBonusPoints) * bonusPoints)
+        : 0;
+      const allowance = Math.max(baseAmount + bonus, 1);
       newAllocations[team.id] = allowance;
+      allocated += allowance;
     });
+
+    // 반올림 오차 조정 (1등에게 추가 또는 차감)
+    if (sortedTeams.length > 0) {
+      const diff = total - allocated;
+      const firstTeam = sortedTeams[0];
+      newAllocations[firstTeam.id] = (newAllocations[firstTeam.id] || 0) + diff;
+    }
 
     setPendingAllocations(newAllocations);
   };
@@ -537,24 +559,53 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <h3 className="font-black text-sm uppercase">미니게임 순위</h3>
                 </div>
                 <div className="flex-1 overflow-y-auto space-y-1 mb-2">
-                  {teams.map((team) => (
-                    <div key={team.id} className="flex gap-2 items-center bg-white/50 p-1 border-2 border-black">
-                      <span className="text-[10px] font-black w-8">{team.index}조</span>
-                      <input
-                        type="number"
-                        placeholder="순위"
-                        className="w-12 border-2 border-black p-1 text-xs font-black"
-                        value={teamRanks[team.id] || ''}
-                        onChange={(e) => setTeamRanks({ ...teamRanks, [team.id]: parseInt(e.target.value) || 0 })}
-                      />
-                      <span className="text-[9px] font-bold text-black/40 truncate flex-1">{team.name}</span>
-                      {pendingAllocations[team.id] && (
-                        <span className="text-[10px] font-black bg-yellow-400 px-2">{pendingAllocations[team.id]}칸</span>
-                      )}
+                  {teams.length === 0 ? (
+                    <div className="text-center py-4 text-sm text-black/50 font-bold">
+                      등록된 팀이 없습니다
                     </div>
-                  ))}
+                  ) : (
+                    teams
+                      .sort((a, b) => (a.index || 0) - (b.index || 0))
+                      .map((team) => (
+                        <div key={team.id} className="flex gap-2 items-center bg-white/50 p-2 border-2 border-black rounded">
+                          <div className="w-10 h-10 bg-black text-yellow-400 flex items-center justify-center font-black rounded">
+                            {team.index}조
+                          </div>
+                          <div className="flex flex-col flex-1 min-w-0">
+                            <span className="text-[10px] font-black text-black/60 truncate">{team.name}</span>
+                            <div className="flex items-center gap-1">
+                              <span className="text-[9px] font-bold text-black/40">순위:</span>
+                              <input
+                                type="number"
+                                min="1"
+                                max={teams.length}
+                                placeholder="#"
+                                className="w-12 border-2 border-black p-1 text-center text-sm font-black bg-white"
+                                value={teamRanks[team.id] || ''}
+                                onChange={(e) => setTeamRanks({ ...teamRanks, [team.id]: parseInt(e.target.value) || 0 })}
+                              />
+                            </div>
+                          </div>
+                          {pendingAllocations[team.id] !== undefined && (
+                            <div className="flex flex-col items-center bg-yellow-400 px-2 py-1 border-2 border-black rounded">
+                              <span className="text-[8px] font-black text-black/60">PUSH</span>
+                              <span className="text-lg font-black">{pendingAllocations[team.id]}</span>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                  )}
                 </div>
-                <button onClick={handleRunAllocation} className="brutal-btn w-full py-2 bg-white text-xs">📊 배분 계산</button>
+                {teams.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="text-[9px] text-center font-bold text-black/60">
+                      총 {totalPushInput}칸 / {teams.length}팀
+                    </div>
+                    <button onClick={handleRunAllocation} className="brutal-btn w-full py-2 bg-white text-xs font-black">
+                      📊 배분 계산
+                    </button>
+                  </div>
+                )}
               </section>
 
               {/* 4. 팀별 PUSH 공개 */}
