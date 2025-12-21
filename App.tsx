@@ -249,12 +249,19 @@ const App: React.FC = () => {
     let updatedTeams: Team[];
 
     if (existingTeamIndex >= 0) {
-      // 기존 팀 업데이트
+      // 기존 팀 업데이트 (배열 기본값 보장)
+      const existingTeam = teams[existingTeamIndex];
       newTeam = {
-        ...teams[existingTeamIndex],
+        ...existingTeam,
         name: teamData.name || '',
         slogan: teamData.slogan || '',
-        members: teamData.members || []
+        members: teamData.members || [],
+        // 배열 속성들 기본값 보장
+        sponsorships: existingTeam.sponsorships || [],
+        currentRoundPushes: existingTeam.currentRoundPushes || [],
+        hasSubmittedPushes: existingTeam.hasSubmittedPushes || false,
+        totalPushAllowance: existingTeam.totalPushAllowance || 0,
+        totalPoints: existingTeam.totalPoints || 0
       };
       updatedTeams = teams.map((t, i) => i === existingTeamIndex ? newTeam : t);
     } else {
