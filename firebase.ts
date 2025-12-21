@@ -2,16 +2,15 @@ import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, set, onValue, update, remove, DatabaseReference } from 'firebase/database';
 import { GameState } from './types';
 
-// ⚠️ Firebase 설정을 여기에 붙여넣으세요!
-// Firebase Console에서 복사한 설정으로 교체하세요.
+// Firebase 설정
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "YOUR_PROJECT",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyDPbbpYUGJs6Xt0hWw__8_6eHIfhhT-oCM",
+  authDomain: "yja-survivalracing.firebaseapp.com",
+  databaseURL: "https://yja-survivalracing-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "yja-survivalracing",
+  storageBucket: "yja-survivalracing.firebasestorage.app",
+  messagingSenderId: "408723293686",
+  appId: "1:408723293686:web:c6d1be909136be24b6f3d7"
 };
 
 // Firebase 초기화
