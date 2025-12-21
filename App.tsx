@@ -8,6 +8,7 @@ import AdminDashboard from './components/AdminDashboard';
 import TeamJoin from './components/TeamJoin';
 import TeamSponsorship from './components/TeamSponsorship';
 import TeamPushControl from './components/TeamPushControl';
+import TeamMiniGameWaiting from './components/TeamMiniGameWaiting';
 import Notification from './components/Notification';
 
 // 로컬 동기화용 BroadcastChannel (같은 브라우저 탭 간)
@@ -391,6 +392,16 @@ const App: React.FC = () => {
               );
               updateGameState({ ...gameState, teams: newTeams });
             }}
+          />
+        );
+      }
+
+      // 미니게임 대기 화면
+      if (gameState.status === 'MINI_GAME') {
+        return (
+          <TeamMiniGameWaiting
+            team={currentTeam}
+            gameState={gameState}
           />
         );
       }
