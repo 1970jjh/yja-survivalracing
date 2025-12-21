@@ -19,6 +19,24 @@ const TeamJoin: React.FC<TeamJoinProps> = ({ gameState, onJoin, onBack, selected
 
   const teams = gameState?.teams || [];
   const maxTeams = gameState?.maxTeams || 2;
+  const gameStatus = gameState?.status || 'LOBBY';
+  const isGameInProgress = gameStatus !== 'LOBBY' && gameStatus !== 'SPONSORING';
+
+  // 게임 상태에 따른 배너 메시지
+  const getStatusBanner = () => {
+    switch (gameStatus) {
+      case 'MINI_GAME':
+        return { text: '🎮 미니게임 진행 중! 빨리 입장하세요!', color: 'bg-orange-500' };
+      case 'PUSH_INPUT':
+        return { text: '⚡ PUSH 입력 중! 빨리 입장하세요!', color: 'bg-green-500' };
+      case 'REVEALING':
+        return { text: '🎯 결과 공개 중!', color: 'bg-pink-500' };
+      default:
+        return null;
+    }
+  };
+
+  const statusBanner = getStatusBanner();
 
   // 해당 슬롯의 팀 정보 가져오기
   const getTeamAtSlot = (index: number) => {
@@ -60,7 +78,13 @@ const TeamJoin: React.FC<TeamJoinProps> = ({ gameState, onJoin, onBack, selected
   if (selectedTeamIndex === null || selectedTeamIndex === undefined) {
     return (
       <div className="flex flex-col items-center min-h-screen bg-slate-900 p-4 pb-10">
-        <div className="bg-white rounded-3xl p-8 w-full max-w-md text-slate-900 shadow-2xl">
+        {/* 게임 진행 상태 배너 */}
+        {statusBanner && (
+          <div className={`w-full max-w-md ${statusBanner.color} text-white p-3 rounded-t-3xl text-center font-black text-sm animate-pulse`}>
+            {statusBanner.text}
+          </div>
+        )}
+        <div className={`bg-white ${statusBanner ? 'rounded-b-3xl' : 'rounded-3xl'} p-8 w-full max-w-md text-slate-900 shadow-2xl`}>
           <button onClick={onBack} className="text-slate-400 mb-4 font-bold">← 뒤로가기</button>
 
           <div className="flex flex-col items-center mb-6">
@@ -111,7 +135,13 @@ const TeamJoin: React.FC<TeamJoinProps> = ({ gameState, onJoin, onBack, selected
   if (isSelectedTeamComplete && selectedTeam) {
     return (
       <div className="flex flex-col items-center min-h-screen bg-slate-900 p-4 pb-10">
-        <div className="bg-white rounded-3xl p-8 w-full max-w-md text-slate-900 shadow-2xl">
+        {/* 게임 진행 상태 배너 */}
+        {statusBanner && (
+          <div className={`w-full max-w-md ${statusBanner.color} text-white p-3 rounded-t-3xl text-center font-black text-sm animate-pulse`}>
+            {statusBanner.text}
+          </div>
+        )}
+        <div className={`bg-white ${statusBanner ? 'rounded-b-3xl' : 'rounded-3xl'} p-8 w-full max-w-md text-slate-900 shadow-2xl`}>
           <button onClick={onBack} className="text-slate-400 mb-4 font-bold">← 팀 선택으로</button>
 
           <div className="flex flex-col items-center mb-6">
@@ -152,7 +182,13 @@ const TeamJoin: React.FC<TeamJoinProps> = ({ gameState, onJoin, onBack, selected
   // 팀 정보 입력 화면 (첫 번째 사람이 입력)
   return (
     <div className="flex flex-col items-center min-h-screen bg-slate-900 p-4 pb-10">
-      <div className="bg-white rounded-3xl p-8 w-full max-w-md text-slate-900 shadow-2xl overflow-y-auto">
+      {/* 게임 진행 상태 배너 */}
+      {statusBanner && (
+        <div className={`w-full max-w-md ${statusBanner.color} text-white p-3 rounded-t-3xl text-center font-black text-sm animate-pulse`}>
+          {statusBanner.text}
+        </div>
+      )}
+      <div className={`bg-white ${statusBanner ? 'rounded-b-3xl' : 'rounded-3xl'} p-8 w-full max-w-md text-slate-900 shadow-2xl overflow-y-auto`}>
         <button onClick={onBack} className="text-slate-400 mb-4 font-bold">← 팀 선택으로</button>
 
         <div className="flex flex-col items-center mb-4">
