@@ -54,7 +54,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       if (newTimer.remainingSeconds <= 0) {
         newTimer.isRunning = false;
         // 제출하지 않은 팀은 랜덤 배분
-        const updatedTeams = gameState.teams.map(team => {
+        const currentTeams = gameState.teams || [];
+        const updatedTeams = currentTeams.map(team => {
           if (!team.hasSubmittedPushes && team.totalPushAllowance > 0) {
             return randomlyDistributePush(team);
           }
@@ -105,18 +106,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Push 배분 계산 (예: 47 / 6팀 = 1st:12, 2nd:10, 3rd:8, 4th:6, 5th:6, 6th:5)
   const handleRunAllocation = () => {
-    const teamsWithRanks = gameState.teams.filter(t => teamRanks[t.id]);
+    const currentTeams = gameState.teams || [];
+    const teamsWithRanks = currentTeams.filter(t => teamRanks[t.id]);
     if (teamsWithRanks.length === 0) {
       alert('최소 1개 팀의 순위를 입력해주세요.');
       return;
     }
 
-    const n = gameState.teams.length;
+    const n = currentTeams.length;
     const total = totalPushInput;
     const newAllocations: Record<string, number> = {};
 
     // 순위별로 정렬
-    const sortedTeams = [...gameState.teams].sort((a, b) => {
+    const sortedTeams = [...currentTeams].sort((a, b) => {
       const rankA = teamRanks[a.id] || 999;
       const rankB = teamRanks[b.id] || 999;
       return rankA - rankB;
@@ -155,7 +157,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // 팀에 Push 권한 배분 및 타이머 시작
   const handlePushToTeams = () => {
-    const newTeams = gameState.teams.map(team => ({
+    const currentTeams = gameState.teams || [];
+    const newTeams = currentTeams.map(team => ({
       ...team,
       totalPushAllowance: pendingAllocations[team.id] || 0,
       hasSubmittedPushes: false,
@@ -205,14 +208,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // 결과 공개 모드로 전환
   const startRevealing = () => {
+    const currentTeams = gameState.teams || [];
     // 모든 팀이 제출했는지 확인
-    const allSubmitted = gameState.teams.every(t => t.hasSubmittedPushes || t.totalPushAllowance === 0);
-    if (!allSubmitted && gameState.timer.remainingSeconds > 0) {
+    const allSubmitted = currentTeams.every(t => t.hasSubmittedPushes || t.totalPushAllowance === 0);
+    const timerRemaining = gameState.timer?.remainingSeconds || 0;
+    if (!allSubmitted && timerRemaining > 0) {
       if (!confirm('아직 제출하지 않은 팀이 있습니다. 그래도 결과 공개를 시작하시겠습니까?')) {
         return;
       }
       // 미제출 팀 랜덤 배분
-      const updatedTeams = gameState.teams.map(team => {
+      const updatedTeams = currentTeams.map(team => {
         if (!team.hasSubmittedPushes && team.totalPushAllowance > 0) {
           return randomlyDistributePush(team);
         }
@@ -235,12 +240,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // 팀 결과 공개 (한 팀씩)
   const revealTeam = (teamId: string) => {
-    const team = gameState.teams.find(t => t.id === teamId);
+    const currentTeams = gameState.teams || [];
+    const team = currentTeams.find(t => t.id === teamId);
     if (!team) return;
 
+    const currentRacers = gameState.racers || [];
+    const currentPushes = team.currentRoundPushes || [];
     // 레이서 위치 업데이트
-    const newRacers = gameState.racers.map(racer => {
-      const push = team.currentRoundPushes.find(p => p.racerId === racer.id);
+    const newRacers = currentRacers.map(racer => {
+      const push = currentPushes.find(p => p.racerId === racer.id);
       if (push) {
         let newPos = racer.position + push.count;
         let isEliminated = racer.isEliminated;
@@ -295,13 +303,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // 최종 결과 계산
   const calculateFinalResults = () => {
-    const activeRacers = [...gameState.racers]
+    const currentRacers = gameState.racers || [];
+    const currentTeams = gameState.teams || [];
+    const activeRacers = [...currentRacers]
       .filter(r => !r.isEliminated)
       .sort((a, b) => b.position - a.position);
 
-    const teamIncomes = gameState.teams.map(team => {
+    const teamIncomes = currentTeams.map(team => {
       let income = 0;
-      team.sponsorships.forEach(s => {
+      const sponsorships = team.sponsorships || [];
+      sponsorships.forEach(s => {
         const racerIdx = activeRacers.findIndex(r => r.id === s.racerId);
         if (racerIdx !== -1) {
           const multiplier = 8 - racerIdx;

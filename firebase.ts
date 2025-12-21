@@ -42,13 +42,18 @@ export const subscribeToActiveGames = (
 ): (() => void) => {
   const gamesRef = ref(database, 'games');
   const unsubscribe = onValue(gamesRef, (snapshot) => {
-    const data = snapshot.val();
-    if (data) {
-      const games = Object.values(data) as GameState[];
-      // FINISHED가 아닌 게임만 필터링
-      const activeGames = games.filter(g => g.status !== 'FINISHED');
-      callback(activeGames);
-    } else {
+    try {
+      const data = snapshot.val();
+      if (data) {
+        const games = Object.values(data) as GameState[];
+        // FINISHED가 아닌 게임만 필터링 (안전하게 체크)
+        const activeGames = games.filter(g => g && g.status && g.status !== 'FINISHED');
+        callback(activeGames);
+      } else {
+        callback([]);
+      }
+    } catch (error) {
+      console.error('게임 목록 구독 오류:', error);
       callback([]);
     }
   });
