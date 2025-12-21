@@ -307,14 +307,8 @@ const App: React.FC = () => {
         <Lobby
           activeGames={activeGames}
           onAdminClick={() => setView('ADMIN_SETUP')}
-          onJoinGame={() => {
-            if (activeGames.length === 1) {
-              handleSelectGame(activeGames[0]);
-            } else if (activeGames.length > 1) {
-              handleSelectGame(activeGames[0]);
-            } else {
-              showNotification('참여할 수 있는 게임이 없습니다.', 'error');
-            }
+          onJoinGame={(game) => {
+            handleSelectGame(game);
           }}
           useFirebase={useFirebase}
         />

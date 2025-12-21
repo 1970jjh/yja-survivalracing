@@ -4,7 +4,7 @@ import { GameState } from '../types';
 interface LobbyProps {
   activeGames: GameState[];
   onAdminClick: () => void;
-  onJoinGame: () => void;
+  onJoinGame: (game: GameState) => void;
   useFirebase?: boolean;
 }
 
@@ -54,7 +54,7 @@ const Lobby: React.FC<LobbyProps> = ({ activeGames, onAdminClick, onJoinGame, us
 
         <div className="flex gap-4 mb-10">
           <button
-            onClick={onJoinGame}
+            onClick={() => games.length > 0 && onJoinGame(games[0])}
             disabled={games.length === 0}
             className={`flex-1 py-3 px-4 rounded-xl border-2 font-bold transition-all ${
               games.length > 0
@@ -121,7 +121,7 @@ const Lobby: React.FC<LobbyProps> = ({ activeGames, onAdminClick, onJoinGame, us
                   )}
 
                   <button
-                    onClick={onJoinGame}
+                    onClick={() => onJoinGame(game)}
                     className="w-full py-3 bg-yellow-400 text-black rounded-lg font-black text-sm hover:bg-yellow-300 transition-all border-2 border-black"
                   >
                     🚀 입장하기
