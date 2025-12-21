@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { GameState, Team, TimerState, RevealState } from '../types';
 import { CarIcon } from '../constants';
 import TeamPushControl from './TeamPushControl';
 import TeamSponsorship from './TeamSponsorship';
+
+// 자동차 시동 소리 URL (무료 효과음)
+const CAR_ENGINE_SOUND = 'https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3';
 
 interface AdminDashboardProps {
   gameState: GameState;
@@ -26,6 +29,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [previewTeamIndex, setPreviewTeamIndex] = useState(0);
   const [showMiniGamePopup, setShowMiniGamePopup] = useState(true);
+  const carSoundRef = useRef<HTMLAudioElement | null>(null);
+
+  // 자동차 소리 재생 함수
+  const playCarSound = () => {
+    if (carSoundRef.current) {
+      carSoundRef.current.currentTime = 0;
+      carSoundRef.current.play().catch(() => {});
+    }
+  };
 
   // 안전한 기본값
   const teams = gameState.teams || [];
@@ -260,6 +272,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       currentRevealingTeamId: teamId
     };
 
+    // 자동차 시동 소리 재생
+    playCarSound();
+
     updateState({
       ...gameState,
       racers: newRacers,
@@ -349,6 +364,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   return (
     <div className="flex flex-col h-screen overflow-hidden select-none font-sans relative bg-slate-100">
+      {/* 자동차 시동 소리 */}
+      <audio ref={carSoundRef} src={CAR_ENGINE_SOUND} preload="auto" />
+
       {/* BGM */}
       {isMusicPlaying && (
         <iframe
@@ -514,7 +532,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         <div
                           className="absolute inset-y-0 transition-all duration-1000 ease-in-out flex items-center z-10"
                           style={{
-                            left: racer.position > 20 ? '105%' : `${(racer.position / 20) * 100}%`,
+                            // 각 칸의 중앙에 정확하게 위치시키기: 칸 N의 중앙 = (N - 0.5) / 20 * 100%
+                            left: racer.position > 20 ? '105%' : racer.position <= 0 ? '0%' : `${((racer.position - 0.5) / 20) * 100}%`,
                             transform: `translateX(-50%) ${racer.isEliminated && racer.position > 20 ? 'rotate(90deg) translateY(100px)' : racer.isEliminated ? 'rotate(45deg) scale(0.6)' : ''}`,
                             opacity: racer.isEliminated && racer.position > 20 ? 0 : racer.isEliminated ? 0.3 : 1
                           }}
