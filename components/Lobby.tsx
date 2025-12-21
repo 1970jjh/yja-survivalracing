@@ -84,45 +84,48 @@ const Lobby: React.FC<LobbyProps> = ({ activeGames, onAdminClick, onJoinGame, us
           </div>
 
           {activeGames.length > 0 ? (
-            activeGames.map(game => (
-              <div
-                key={game.id}
-                className="border-2 border-black rounded-2xl p-5 bg-white hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all"
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h4 className="font-black text-lg text-slate-800">{game.courseName}</h4>
-                    <p className="text-xs text-slate-400">
-                      {game.teams.length}/{game.maxTeams} Teams • Round {game.currentRound}/{game.totalRounds}
-                    </p>
-                  </div>
-                  <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${getStatusColor(game.status)}`}>
-                    {getStatusText(game.status)}
-                  </span>
-                </div>
-
-                {/* 참가 팀 미리보기 */}
-                {game.teams.length > 0 && (
-                  <div className="mb-4 flex flex-wrap gap-1">
-                    {game.teams.slice(0, 5).map(team => (
-                      <span key={team.id} className="text-[10px] bg-slate-100 px-2 py-0.5 rounded font-bold">
-                        {team.name}
-                      </span>
-                    ))}
-                    {game.teams.length > 5 && (
-                      <span className="text-[10px] text-slate-400">+{game.teams.length - 5}팀</span>
-                    )}
-                  </div>
-                )}
-
-                <button
-                  onClick={onJoinGame}
-                  className="w-full py-3 bg-yellow-400 text-black rounded-lg font-black text-sm hover:bg-yellow-300 transition-all border-2 border-black"
+            activeGames.map(game => {
+              const teams = game.teams || [];
+              return (
+                <div
+                  key={game.id}
+                  className="border-2 border-black rounded-2xl p-5 bg-white hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all"
                 >
-                  🚀 입장하기
-                </button>
-              </div>
-            ))
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h4 className="font-black text-lg text-slate-800">{game.courseName}</h4>
+                      <p className="text-xs text-slate-400">
+                        {teams.length}/{game.maxTeams} Teams • Round {game.currentRound}/{game.totalRounds}
+                      </p>
+                    </div>
+                    <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${getStatusColor(game.status)}`}>
+                      {getStatusText(game.status)}
+                    </span>
+                  </div>
+
+                  {/* 참가 팀 미리보기 */}
+                  {teams.length > 0 && (
+                    <div className="mb-4 flex flex-wrap gap-1">
+                      {teams.slice(0, 5).map(team => (
+                        <span key={team.id} className="text-[10px] bg-slate-100 px-2 py-0.5 rounded font-bold">
+                          {team.name}
+                        </span>
+                      ))}
+                      {teams.length > 5 && (
+                        <span className="text-[10px] text-slate-400">+{teams.length - 5}팀</span>
+                      )}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={onJoinGame}
+                    className="w-full py-3 bg-yellow-400 text-black rounded-lg font-black text-sm hover:bg-yellow-300 transition-all border-2 border-black"
+                  >
+                    🚀 입장하기
+                  </button>
+                </div>
+              );
+            })
           ) : (
             <div className="text-center py-10 border-2 border-dashed border-slate-200 rounded-2xl">
               <span className="text-4xl block mb-4">🏁</span>
