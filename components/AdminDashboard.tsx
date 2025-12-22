@@ -402,19 +402,21 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // 게임 종료 - INP 최적화
   const finishGame = () => {
-    if (confirm('게임을 완전히 종료하시겠습니까?')) {
-      requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (confirm('게임을 완전히 종료하시겠습니까?')) {
         updateState({ ...gameState, status: 'FINISHED' });
-      });
-    }
+      }
+    });
   };
 
-  // 게임 리셋
+  // 게임 리셋 - INP 최적화
   const resetGame = () => {
-    if (confirm('게임을 초기화하시겠습니까? 모든 데이터가 삭제됩니다.')) {
-      updateState(null);
-      onExit();
-    }
+    requestAnimationFrame(() => {
+      if (confirm('게임을 초기화하시겠습니까? 모든 데이터가 삭제됩니다.')) {
+        updateState(null);
+        onExit();
+      }
+    });
   };
 
   // 타이머 포맷팅

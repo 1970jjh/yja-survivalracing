@@ -284,6 +284,9 @@ const App: React.FC = () => {
     let newTeam: Team;
     let updatedTeams: Team[];
 
+    // 멤버 데이터 깊은 복사 (팀 간 데이터 독립성 보장)
+    const membersCopy = (teamData.members || []).map((m: TeamMember) => ({ ...m }));
+
     if (existingTeamIndex >= 0) {
       // 기존 팀 업데이트 (배열 기본값 보장)
       const existingTeam = teams[existingTeamIndex];
@@ -291,7 +294,7 @@ const App: React.FC = () => {
         ...existingTeam,
         name: teamData.name || '',
         slogan: teamData.slogan || '',
-        members: teamData.members || [],
+        members: membersCopy,
         // 배열 속성들 기본값 보장
         sponsorships: existingTeam.sponsorships || [],
         currentRoundPushes: existingTeam.currentRoundPushes || [],
@@ -307,7 +310,7 @@ const App: React.FC = () => {
         index: teamIndex,
         name: teamData.name || '',
         slogan: teamData.slogan || '',
-        members: teamData.members || [],
+        members: membersCopy,
         sponsorships: [],
         currentRoundPushes: [],
         hasSubmittedPushes: false,
