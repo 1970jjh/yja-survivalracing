@@ -431,6 +431,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const totalTeams = teams.length;
   const allTeamsSubmitted = totalTeams > 0 && teams.every(t => t.hasSubmittedPushes || t.totalPushAllowance === 0);
 
+  // 스폰서십 제출 상태 계산
+  const teamsWithSponsorship = teams.filter(t => t.sponsorships && t.sponsorships.length >= 3);
+  const allTeamsSponsorshipSubmitted = totalTeams > 0 && teamsWithSponsorship.length === totalTeams;
+
   return (
     <div className="flex flex-col h-screen overflow-hidden select-none font-sans relative bg-slate-100">
       {/* 자동차 시동 소리 */}
@@ -654,9 +658,50 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
                 <div className="flex-1 flex flex-col gap-3">
                   {gameState.status === 'LOBBY' && (
-                    <button onClick={startSponsoring} className="brutal-btn flex-1 bg-purple-500 text-white text-base font-black">
-                      💰 스폰서십 시작
-                    </button>
+                    <>
+                      {/* 스폰서십 제출 현황 */}
+                      <div className="bg-white/60 p-2 rounded border-2 border-black">
+                        <p className="text-[10px] font-black text-black/60 mb-1 uppercase">스폰서십 제출 현황</p>
+                        <div className="grid grid-cols-4 gap-1">
+                          {Array.from({ length: gameState.maxTeams }, (_, i) => {
+                            const teamIndex = i + 1;
+                            const team = teams.find(t => t.index === teamIndex);
+                            const hasSponsorship = team && team.sponsorships && team.sponsorships.length >= 3;
+                            return (
+                              <div
+                                key={teamIndex}
+                                className={`text-center py-1 px-1 rounded text-[10px] font-black border ${
+                                  hasSponsorship
+                                    ? 'bg-green-500 text-white border-green-700'
+                                    : team
+                                      ? 'bg-orange-400 text-white border-orange-600'
+                                      : 'bg-gray-200 text-gray-400 border-gray-300'
+                                }`}
+                              >
+                                {teamIndex}조
+                                {hasSponsorship && ' ✓'}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <p className="text-[9px] text-black/50 mt-1 text-center">
+                          {teamsWithSponsorship.length}/{totalTeams}팀 완료
+                          {!allTeamsSponsorshipSubmitted && totalTeams > 0 && ' (대기중...)'}
+                          {allTeamsSponsorshipSubmitted && ' ✅'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={startSponsoring}
+                        disabled={!allTeamsSponsorshipSubmitted}
+                        className={`brutal-btn flex-1 text-white text-base font-black ${
+                          allTeamsSponsorshipSubmitted
+                            ? 'bg-purple-500 animate-pulse ring-2 ring-yellow-400'
+                            : 'bg-gray-400 cursor-not-allowed opacity-60'
+                        }`}
+                      >
+                        {allTeamsSponsorshipSubmitted ? '✅ 스폰서십 시작' : '💰 스폰서십 시작 (대기중)'}
+                      </button>
+                    </>
                   )}
                   {(gameState.status === 'LOBBY' || gameState.status === 'SPONSORING') && (
                     <button onClick={startMiniGame} className="brutal-btn flex-1 bg-orange-500 text-white text-base font-black">
