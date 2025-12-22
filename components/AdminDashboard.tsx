@@ -655,20 +655,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             </div>
 
-            {/* 컨트롤 패널 */}
-            <div className="grid grid-cols-4 gap-4 min-h-[320px]">
+            {/* 컨트롤 패널 - 높이 축소 */}
+            <div className="grid grid-cols-3 gap-3 h-[200px]">
               {/* 1. 게임 진행 */}
-              <section className="brutal-card bg-blue-300 p-4 flex flex-col">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center font-black text-lg">1</span>
-                  <h3 className="font-black text-base uppercase">게임 진행</h3>
+              <section className="brutal-card bg-blue-300 p-3 flex flex-col">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center font-black text-sm">1</span>
+                  <h3 className="font-black text-sm uppercase">게임 진행</h3>
                 </div>
-                <div className="flex-1 flex flex-col gap-3">
+                <div className="flex-1 flex flex-col gap-2">
                   {gameState.status === 'LOBBY' && (
                     <>
                       {/* 스폰서십 제출 현황 */}
-                      <div className="bg-white/60 p-2 rounded border-2 border-black">
-                        <p className="text-[10px] font-black text-black/60 mb-1 uppercase">스폰서십 제출 현황</p>
+                      <div className="bg-white/60 p-1.5 rounded border-2 border-black">
+                        <p className="text-[9px] font-black text-black/60 mb-1 uppercase">스폰서십 제출 현황</p>
                         <div className="grid grid-cols-4 gap-1">
                           {Array.from({ length: gameState.maxTeams }, (_, i) => {
                             const teamIndex = i + 1;
@@ -677,7 +677,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             return (
                               <div
                                 key={teamIndex}
-                                className={`text-center py-1 px-1 rounded text-[10px] font-black border ${
+                                className={`text-center py-0.5 rounded text-[9px] font-black border ${
                                   hasSponsorship
                                     ? 'bg-green-500 text-white border-green-700'
                                     : team
@@ -685,169 +685,138 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                       : 'bg-gray-200 text-gray-400 border-gray-300'
                                 }`}
                               >
-                                {teamIndex}조
-                                {hasSponsorship && ' ✓'}
+                                {teamIndex}조{hasSponsorship && ' ✓'}
                               </div>
                             );
                           })}
                         </div>
-                        <p className="text-[9px] text-black/50 mt-1 text-center">
-                          {teamsWithSponsorship.length}/{totalTeams}팀 완료
-                          {!allTeamsSponsorshipSubmitted && totalTeams > 0 && ' (대기중...)'}
-                          {allTeamsSponsorshipSubmitted && ' ✅'}
-                        </p>
                       </div>
                       <button
                         onClick={startSponsoring}
                         disabled={!allTeamsSponsorshipSubmitted}
-                        className={`brutal-btn flex-1 text-white text-base font-black ${
+                        className={`brutal-btn py-2 text-white text-sm font-black ${
                           allTeamsSponsorshipSubmitted
                             ? 'bg-purple-500 animate-pulse ring-2 ring-yellow-400'
                             : 'bg-gray-400 cursor-not-allowed opacity-60'
                         }`}
                       >
-                        {allTeamsSponsorshipSubmitted ? '✅ 스폰서십 시작' : '💰 스폰서십 시작 (대기중)'}
+                        {allTeamsSponsorshipSubmitted ? '✅ 스폰서십 시작' : '💰 스폰서십 (대기)'}
                       </button>
                     </>
                   )}
                   {(gameState.status === 'LOBBY' || gameState.status === 'SPONSORING') && (
-                    <button onClick={startMiniGame} className="brutal-btn flex-1 bg-orange-500 text-white text-base font-black">
+                    <button onClick={startMiniGame} className="brutal-btn py-2 bg-orange-500 text-white text-sm font-black">
                       🎮 미니게임 시작
                     </button>
                   )}
                   {gameState.status === 'PUSH_INPUT' && (
                     <button
                       onClick={startRevealing}
-                      className={`brutal-btn flex-1 text-white text-base font-black ${allTeamsSubmitted ? 'bg-green-500 animate-pulse ring-4 ring-yellow-400' : 'bg-pink-500'}`}
+                      className={`brutal-btn py-2 text-white text-sm font-black ${allTeamsSubmitted ? 'bg-green-500 animate-pulse ring-4 ring-yellow-400' : 'bg-pink-500'}`}
                     >
-                      {allTeamsSubmitted ? '✅ 모두 제출! 결과 공개' : '🎯 결과 공개 시작'}
+                      {allTeamsSubmitted ? '✅ 결과 공개' : '🎯 결과 공개'}
                     </button>
                   )}
                   {gameState.status === 'REVEALING' && (
-                    <button onClick={nextRound} className="brutal-btn flex-1 bg-black text-white text-base font-black">
+                    <button onClick={nextRound} className="brutal-btn py-2 bg-black text-white text-sm font-black">
                       ➡️ 다음 라운드
                     </button>
                   )}
                   {gameState.status === 'RESULTS' && (
-                    <button onClick={finishGame} className="brutal-btn flex-1 bg-red-500 text-white text-base font-black">
+                    <button onClick={finishGame} className="brutal-btn py-2 bg-red-500 text-white text-sm font-black">
                       🏁 게임 종료
                     </button>
                   )}
                 </div>
               </section>
 
-              {/* 2. 라운드 설정 */}
-              <section className="brutal-card bg-cyan-300 p-4 flex flex-col">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center font-black text-lg">2</span>
-                  <h3 className="font-black text-base uppercase">라운드 설정</h3>
+              {/* 2. 라운드 설정 + 3. 미니게임 순위 (합침) */}
+              <section className="brutal-card bg-cyan-300 p-3 flex flex-col">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center font-black text-sm">2</span>
+                  <h3 className="font-black text-sm uppercase">라운드 설정</h3>
                 </div>
-                <div className="flex-1 flex flex-col gap-3">
-                  <div className="flex gap-3">
-                    <div className="flex-1">
-                      <label className="text-xs font-black block mb-1">1등 PUSH</label>
-                      <input type="number" className="brutal-input text-lg w-full font-black" value={totalPushInput} onChange={(e) => setTotalPushInput(parseInt(e.target.value) || 0)} />
-                    </div>
-                    <div className="flex-1">
-                      <label className="text-xs font-black block mb-1">시간(분)</label>
-                      <input type="number" className="brutal-input text-lg w-full font-black" value={timerMinutes} onChange={(e) => setTimerMinutes(parseInt(e.target.value) || 1)} />
-                    </div>
+                {/* 라운드 설정 */}
+                <div className="flex gap-2 mb-2">
+                  <div className="flex-1">
+                    <label className="text-[10px] font-black block mb-0.5">1등 PUSH</label>
+                    <input type="number" className="brutal-input text-sm w-full font-black p-1" value={totalPushInput} onChange={(e) => setTotalPushInput(parseInt(e.target.value) || 0)} />
                   </div>
-                  <p className="text-xs text-black/60">2등: -2칸, 3등~: -1칸씩</p>
+                  <div className="flex-1">
+                    <label className="text-[10px] font-black block mb-0.5">시간(분)</label>
+                    <input type="number" className="brutal-input text-sm w-full font-black p-1" value={timerMinutes} onChange={(e) => setTimerMinutes(parseInt(e.target.value) || 1)} />
+                  </div>
                 </div>
-              </section>
-
-              {/* 3. 미니게임 순위 */}
-              <section className="brutal-card bg-lime-400 p-4 flex flex-col">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center font-black text-lg">3</span>
-                  <h3 className="font-black text-base uppercase">미니게임 순위</h3>
-                </div>
-                <div className="flex-1 overflow-y-auto space-y-2 mb-2">
-                  {teams.length === 0 ? (
-                    <div className="text-center py-4 text-base text-black/50 font-bold">
-                      등록된 팀이 없습니다
-                    </div>
-                  ) : (
-                    teams
-                      .sort((a, b) => (a.index || 0) - (b.index || 0))
-                      .map((team) => (
-                        <div key={team.id} className="flex gap-2 items-center bg-white/50 p-2 border-2 border-black rounded">
-                          <div className="w-12 h-12 bg-black text-yellow-400 flex items-center justify-center font-black rounded text-sm">
-                            {team.index}조
-                          </div>
-                          <div className="flex flex-col flex-1 min-w-0">
-                            <span className="text-xs font-black text-black/60 truncate">{team.name}</span>
-                            <div className="flex items-center gap-1">
-                              <span className="text-xs font-bold text-black/40">순위:</span>
-                              <input
-                                type="number"
-                                min="1"
-                                max={teams.length}
-                                placeholder="#"
-                                className="w-14 border-2 border-black p-1 text-center text-base font-black bg-white"
-                                value={teamRanks[team.id] || ''}
-                                onChange={(e) => setTeamRanks({ ...teamRanks, [team.id]: parseInt(e.target.value) || 0 })}
-                              />
-                            </div>
-                          </div>
-                          {pendingAllocations[team.id] !== undefined && (
-                            <div className="flex flex-col items-center bg-yellow-400 px-3 py-1 border-2 border-black rounded">
-                              <span className="text-[10px] font-black text-black/60">PUSH</span>
-                              <span className="text-xl font-black">{pendingAllocations[team.id]}</span>
-                            </div>
-                          )}
-                        </div>
-                      ))
-                  )}
-                </div>
-                {teams.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="text-xs text-center font-bold text-black/60">
-                      1등 {totalPushInput}칸 / {teams.length}팀
-                    </div>
-                    <button onClick={handleRunAllocation} className="brutal-btn w-full py-3 bg-white text-sm font-black">
-                      📊 배분 계산
+                {/* 미니게임 순위 - 병렬 구조 */}
+                <div className="flex-1 bg-lime-400 rounded border-2 border-black p-2 overflow-hidden">
+                  <div className="flex items-center gap-1 mb-1">
+                    <span className="w-5 h-5 bg-black text-white rounded-full flex items-center justify-center font-black text-[10px]">3</span>
+                    <span className="font-black text-[10px] uppercase">미니게임 순위</span>
+                    <button onClick={handleRunAllocation} className="ml-auto brutal-btn px-2 py-0.5 bg-white text-[10px] font-black">
+                      📊 배분
                     </button>
                   </div>
-                )}
+                  {teams.length === 0 ? (
+                    <div className="text-center text-[10px] text-black/50 font-bold">등록된 팀 없음</div>
+                  ) : (
+                    <div className="grid grid-cols-4 gap-1">
+                      {teams
+                        .sort((a, b) => (a.index || 0) - (b.index || 0))
+                        .map((team) => (
+                          <div key={team.id} className="bg-white/70 p-1 border border-black rounded flex flex-col items-center">
+                            <span className="text-[10px] font-black">{team.index}조</span>
+                            <input
+                              type="number"
+                              min="1"
+                              max={teams.length}
+                              placeholder="#"
+                              className="w-8 border border-black text-center text-xs font-black bg-white"
+                              value={teamRanks[team.id] || ''}
+                              onChange={(e) => setTeamRanks({ ...teamRanks, [team.id]: parseInt(e.target.value) || 0 })}
+                            />
+                            {pendingAllocations[team.id] !== undefined && (
+                              <span className="text-[10px] font-black text-green-700">P:{pendingAllocations[team.id]}</span>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
               </section>
 
               {/* 4. 팀별 PUSH 공개 */}
-              <section className="brutal-card bg-orange-400 p-4 flex flex-col">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center font-black text-lg">4</span>
-                  <h3 className="font-black text-base uppercase">팀별 PUSH 공개</h3>
+              <section className="brutal-card bg-orange-400 p-3 flex flex-col">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center font-black text-sm">4</span>
+                  <h3 className="font-black text-sm uppercase">팀별 PUSH 공개</h3>
                 </div>
-                <div className="flex-1 overflow-y-auto space-y-2 mb-2">
+                <div className="flex-1 overflow-y-auto space-y-1">
                   {teams.map(team => {
                     const isRevealed = revealState.revealedTeamIds?.includes(team.id);
                     const currentPushes = team.currentRoundPushes || [];
                     const pushSummary = currentPushes.map(p => `${p.racerId}번:${p.count > 0 ? '+' : ''}${p.count}`).join(', ');
 
                     return (
-                      <div key={team.id} className={`p-3 border-2 border-black flex justify-between items-center ${isRevealed ? 'bg-green-200' : team.hasSubmittedPushes ? 'bg-yellow-100' : 'bg-white'}`}>
-                        <div className="flex flex-col">
-                          <span className="text-sm font-black">{team.index}조 {team.name}</span>
+                      <div key={team.id} className={`p-1.5 border-2 border-black flex justify-between items-center text-xs ${isRevealed ? 'bg-green-200' : team.hasSubmittedPushes ? 'bg-yellow-100' : 'bg-white'}`}>
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-black truncate">{team.index}조 {team.name}</span>
                           {team.hasSubmittedPushes && (
-                            <span className="text-xs text-black/60">{pushSummary || '입력 없음'}</span>
+                            <span className="text-[9px] text-black/60 truncate">{pushSummary || '없음'}</span>
                           )}
                         </div>
-                        <div className="flex gap-1">
-                          {/* 미공개 팀: 공개 버튼 (REVEALING 상태에서만) */}
+                        <div className="flex gap-1 flex-shrink-0">
                           {gameState.status === 'REVEALING' && !isRevealed && (
-                            <button onClick={() => revealTeam(team.id)} className="text-xs font-black px-3 py-1.5 bg-pink-500 text-white">
+                            <button onClick={() => revealTeam(team.id)} className="text-[10px] font-black px-2 py-1 bg-pink-500 text-white">
                               공개
                             </button>
                           )}
-                          {/* 공개된 팀: 결과다시보기 버튼 (상태 무관) */}
                           {isRevealed && (
-                            <button onClick={() => showTeamResultAgain(team.id)} className="text-xs font-black px-3 py-1.5 bg-blue-500 text-white">
-                              결과다시보기
+                            <button onClick={() => showTeamResultAgain(team.id)} className="text-[10px] font-black px-2 py-1 bg-blue-500 text-white">
+                              다시보기
                             </button>
                           )}
                           {team.hasSubmittedPushes && (
-                            <span className="text-xs font-black px-3 py-1.5 bg-green-500 text-white">제출</span>
+                            <span className="text-[10px] font-black px-2 py-1 bg-green-500 text-white">✓</span>
                           )}
                         </div>
                       </div>
@@ -855,7 +824,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   })}
                 </div>
                 {gameState.status === 'MINI_GAME' && (
-                  <button onClick={handlePushToTeams} className="brutal-btn w-full py-3 bg-yellow-400 text-sm font-black">📤 PUSH 권한 전송</button>
+                  <button onClick={handlePushToTeams} className="brutal-btn w-full py-2 bg-yellow-400 text-xs font-black mt-1">📤 PUSH 전송</button>
                 )}
               </section>
             </div>
