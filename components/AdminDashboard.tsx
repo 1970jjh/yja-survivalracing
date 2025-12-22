@@ -489,6 +489,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* Header */}
       <div className="bg-yellow-400 p-4 flex justify-between items-center border-b-4 border-black z-20">
         <div className="flex items-center gap-6">
+          {/* QR 코드 - 교육생 참가용 */}
+          <div className="flex flex-col items-center bg-white p-1 rounded border-2 border-black">
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=${encodeURIComponent(window.location.origin + '?game=' + gameState.id)}`}
+              alt="참가 QR"
+              className="w-[60px] h-[60px]"
+            />
+            <span className="text-[8px] font-black text-black">SCAN TO JOIN</span>
+          </div>
           <div className="flex flex-col">
             <h1 className="text-3xl font-black text-black italic leading-none">AI SURVIVAL RACING</h1>
             <span className="text-[12px] text-black font-black uppercase tracking-wider">ADMIN CONTROL CENTER</span>
