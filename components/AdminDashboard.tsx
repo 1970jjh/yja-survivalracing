@@ -349,11 +349,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         currentRevealingTeamId: teamId
       };
 
-      // 마지막 팀 공개 시 축하 효과음
-      if (newRevealedIds.length === currentTeams.length) {
-        setTimeout(() => playCelebrationSound(), 500);
-      }
-
       updateState({
         ...gameState,
         racers: newRacers,
@@ -1028,7 +1023,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             </div>
 
-            <button onClick={() => setShowTeamResults(true)} className="brutal-btn w-full mt-8 py-6 bg-yellow-400 text-black text-2xl font-black animate-pulse">
+            <button onClick={() => { playCelebrationSound(); setShowTeamResults(true); }} className="brutal-btn w-full mt-8 py-6 bg-yellow-400 text-black text-2xl font-black animate-pulse">
               🏆 최종 순위 결과 보기 🏆
             </button>
           </div>
