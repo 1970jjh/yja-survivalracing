@@ -642,39 +642,39 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
 
             {/* 컨트롤 패널 */}
-            <div className="grid grid-cols-4 gap-4 min-h-[280px]">
+            <div className="grid grid-cols-4 gap-4 min-h-[320px]">
               {/* 1. 게임 진행 */}
               <section className="brutal-card bg-blue-300 p-4 flex flex-col">
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center font-black">1</span>
-                  <h3 className="font-black text-sm uppercase">게임 진행</h3>
+                  <span className="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center font-black text-lg">1</span>
+                  <h3 className="font-black text-base uppercase">게임 진행</h3>
                 </div>
-                <div className="flex-1 flex flex-col gap-2">
+                <div className="flex-1 flex flex-col gap-3">
                   {gameState.status === 'LOBBY' && (
-                    <button onClick={startSponsoring} className="brutal-btn flex-1 bg-purple-500 text-white text-sm">
+                    <button onClick={startSponsoring} className="brutal-btn flex-1 bg-purple-500 text-white text-base font-black">
                       💰 스폰서십 시작
                     </button>
                   )}
                   {(gameState.status === 'LOBBY' || gameState.status === 'SPONSORING') && (
-                    <button onClick={startMiniGame} className="brutal-btn flex-1 bg-orange-500 text-white text-sm">
+                    <button onClick={startMiniGame} className="brutal-btn flex-1 bg-orange-500 text-white text-base font-black">
                       🎮 미니게임 시작
                     </button>
                   )}
                   {gameState.status === 'PUSH_INPUT' && (
                     <button
                       onClick={startRevealing}
-                      className={`brutal-btn flex-1 text-white text-sm ${allTeamsSubmitted ? 'bg-green-500 animate-pulse ring-4 ring-yellow-400' : 'bg-pink-500'}`}
+                      className={`brutal-btn flex-1 text-white text-base font-black ${allTeamsSubmitted ? 'bg-green-500 animate-pulse ring-4 ring-yellow-400' : 'bg-pink-500'}`}
                     >
-                      {allTeamsSubmitted ? '✅ 모두 제출! 결과 공개 시작' : '🎯 결과 공개 시작'}
+                      {allTeamsSubmitted ? '✅ 모두 제출! 결과 공개' : '🎯 결과 공개 시작'}
                     </button>
                   )}
                   {gameState.status === 'REVEALING' && (
-                    <button onClick={nextRound} className="brutal-btn flex-1 bg-black text-white text-sm">
+                    <button onClick={nextRound} className="brutal-btn flex-1 bg-black text-white text-base font-black">
                       ➡️ 다음 라운드
                     </button>
                   )}
                   {gameState.status === 'RESULTS' && (
-                    <button onClick={finishGame} className="brutal-btn flex-1 bg-red-500 text-white text-sm">
+                    <button onClick={finishGame} className="brutal-btn flex-1 bg-red-500 text-white text-base font-black">
                       🏁 게임 종료
                     </button>
                   )}
@@ -684,33 +684,33 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               {/* 2. 라운드 설정 */}
               <section className="brutal-card bg-cyan-300 p-4 flex flex-col">
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center font-black">2</span>
-                  <h3 className="font-black text-sm uppercase">라운드 설정</h3>
+                  <span className="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center font-black text-lg">2</span>
+                  <h3 className="font-black text-base uppercase">라운드 설정</h3>
                 </div>
-                <div className="flex-1 flex flex-col gap-2">
-                  <div className="flex gap-2">
+                <div className="flex-1 flex flex-col gap-3">
+                  <div className="flex gap-3">
                     <div className="flex-1">
-                      <label className="text-[9px] font-black block mb-1">1등 PUSH</label>
-                      <input type="number" className="brutal-input text-sm w-full" value={totalPushInput} onChange={(e) => setTotalPushInput(parseInt(e.target.value) || 0)} />
+                      <label className="text-xs font-black block mb-1">1등 PUSH</label>
+                      <input type="number" className="brutal-input text-lg w-full font-black" value={totalPushInput} onChange={(e) => setTotalPushInput(parseInt(e.target.value) || 0)} />
                     </div>
                     <div className="flex-1">
-                      <label className="text-[9px] font-black block mb-1">시간(분)</label>
-                      <input type="number" className="brutal-input text-sm w-full" value={timerMinutes} onChange={(e) => setTimerMinutes(parseInt(e.target.value) || 1)} />
+                      <label className="text-xs font-black block mb-1">시간(분)</label>
+                      <input type="number" className="brutal-input text-lg w-full font-black" value={timerMinutes} onChange={(e) => setTimerMinutes(parseInt(e.target.value) || 1)} />
                     </div>
                   </div>
-                  <p className="text-[8px] text-black/60">2등: -2칸, 3등~: -1칸씩</p>
+                  <p className="text-xs text-black/60">2등: -2칸, 3등~: -1칸씩</p>
                 </div>
               </section>
 
               {/* 3. 미니게임 순위 */}
               <section className="brutal-card bg-lime-400 p-4 flex flex-col">
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center font-black">3</span>
-                  <h3 className="font-black text-sm uppercase">미니게임 순위</h3>
+                  <span className="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center font-black text-lg">3</span>
+                  <h3 className="font-black text-base uppercase">미니게임 순위</h3>
                 </div>
-                <div className="flex-1 overflow-y-auto space-y-1 mb-2">
+                <div className="flex-1 overflow-y-auto space-y-2 mb-2">
                   {teams.length === 0 ? (
-                    <div className="text-center py-4 text-sm text-black/50 font-bold">
+                    <div className="text-center py-4 text-base text-black/50 font-bold">
                       등록된 팀이 없습니다
                     </div>
                   ) : (
@@ -718,28 +718,28 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       .sort((a, b) => (a.index || 0) - (b.index || 0))
                       .map((team) => (
                         <div key={team.id} className="flex gap-2 items-center bg-white/50 p-2 border-2 border-black rounded">
-                          <div className="w-10 h-10 bg-black text-yellow-400 flex items-center justify-center font-black rounded">
+                          <div className="w-12 h-12 bg-black text-yellow-400 flex items-center justify-center font-black rounded text-sm">
                             {team.index}조
                           </div>
                           <div className="flex flex-col flex-1 min-w-0">
-                            <span className="text-[10px] font-black text-black/60 truncate">{team.name}</span>
+                            <span className="text-xs font-black text-black/60 truncate">{team.name}</span>
                             <div className="flex items-center gap-1">
-                              <span className="text-[9px] font-bold text-black/40">순위:</span>
+                              <span className="text-xs font-bold text-black/40">순위:</span>
                               <input
                                 type="number"
                                 min="1"
                                 max={teams.length}
                                 placeholder="#"
-                                className="w-12 border-2 border-black p-1 text-center text-sm font-black bg-white"
+                                className="w-14 border-2 border-black p-1 text-center text-base font-black bg-white"
                                 value={teamRanks[team.id] || ''}
                                 onChange={(e) => setTeamRanks({ ...teamRanks, [team.id]: parseInt(e.target.value) || 0 })}
                               />
                             </div>
                           </div>
                           {pendingAllocations[team.id] !== undefined && (
-                            <div className="flex flex-col items-center bg-yellow-400 px-2 py-1 border-2 border-black rounded">
-                              <span className="text-[8px] font-black text-black/60">PUSH</span>
-                              <span className="text-lg font-black">{pendingAllocations[team.id]}</span>
+                            <div className="flex flex-col items-center bg-yellow-400 px-3 py-1 border-2 border-black rounded">
+                              <span className="text-[10px] font-black text-black/60">PUSH</span>
+                              <span className="text-xl font-black">{pendingAllocations[team.id]}</span>
                             </div>
                           )}
                         </div>
@@ -748,10 +748,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
                 {teams.length > 0 && (
                   <div className="space-y-2">
-                    <div className="text-[9px] text-center font-bold text-black/60">
+                    <div className="text-xs text-center font-bold text-black/60">
                       1등 {totalPushInput}칸 / {teams.length}팀
                     </div>
-                    <button onClick={handleRunAllocation} className="brutal-btn w-full py-2 bg-white text-xs font-black">
+                    <button onClick={handleRunAllocation} className="brutal-btn w-full py-3 bg-white text-sm font-black">
                       📊 배분 계산
                     </button>
                   </div>
@@ -761,36 +761,38 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               {/* 4. 팀별 PUSH 공개 */}
               <section className="brutal-card bg-orange-400 p-4 flex flex-col">
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center font-black">4</span>
-                  <h3 className="font-black text-sm uppercase">팀별 PUSH 공개</h3>
+                  <span className="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center font-black text-lg">4</span>
+                  <h3 className="font-black text-base uppercase">팀별 PUSH 공개</h3>
                 </div>
-                <div className="flex-1 overflow-y-auto space-y-1 mb-2">
+                <div className="flex-1 overflow-y-auto space-y-2 mb-2">
                   {teams.map(team => {
                     const isRevealed = revealState.revealedTeamIds?.includes(team.id);
                     const currentPushes = team.currentRoundPushes || [];
                     const pushSummary = currentPushes.map(p => `${p.racerId}번:${p.count > 0 ? '+' : ''}${p.count}`).join(', ');
 
                     return (
-                      <div key={team.id} className={`p-2 border-2 border-black flex justify-between items-center ${isRevealed ? 'bg-green-200' : team.hasSubmittedPushes ? 'bg-yellow-100' : 'bg-white'}`}>
+                      <div key={team.id} className={`p-3 border-2 border-black flex justify-between items-center ${isRevealed ? 'bg-green-200' : team.hasSubmittedPushes ? 'bg-yellow-100' : 'bg-white'}`}>
                         <div className="flex flex-col">
-                          <span className="text-[10px] font-black">{team.index}조 {team.name}</span>
+                          <span className="text-sm font-black">{team.index}조 {team.name}</span>
                           {team.hasSubmittedPushes && (
-                            <span className="text-[8px] text-black/60">{pushSummary || '입력 없음'}</span>
+                            <span className="text-xs text-black/60">{pushSummary || '입력 없음'}</span>
                           )}
                         </div>
                         <div className="flex gap-1">
+                          {/* 미공개 팀: 공개 버튼 (REVEALING 상태에서만) */}
                           {gameState.status === 'REVEALING' && !isRevealed && (
-                            <button onClick={() => revealTeam(team.id)} className="text-[9px] font-black px-2 py-1 bg-pink-500 text-white">
+                            <button onClick={() => revealTeam(team.id)} className="text-xs font-black px-3 py-1.5 bg-pink-500 text-white">
                               공개
                             </button>
                           )}
-                          {gameState.status === 'REVEALING' && isRevealed && (
-                            <button onClick={() => showTeamResultAgain(team.id)} className="text-[9px] font-black px-2 py-1 bg-blue-500 text-white">
+                          {/* 공개된 팀: 결과다시보기 버튼 (상태 무관) */}
+                          {isRevealed && (
+                            <button onClick={() => showTeamResultAgain(team.id)} className="text-xs font-black px-3 py-1.5 bg-blue-500 text-white">
                               결과다시보기
                             </button>
                           )}
                           {team.hasSubmittedPushes && (
-                            <span className="text-[9px] font-black px-2 py-1 bg-green-500 text-white">제출</span>
+                            <span className="text-xs font-black px-3 py-1.5 bg-green-500 text-white">제출</span>
                           )}
                         </div>
                       </div>
@@ -798,7 +800,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   })}
                 </div>
                 {gameState.status === 'MINI_GAME' && (
-                  <button onClick={handlePushToTeams} className="brutal-btn w-full py-2 bg-yellow-400 text-xs">📤 PUSH 권한 전송</button>
+                  <button onClick={handlePushToTeams} className="brutal-btn w-full py-3 bg-yellow-400 text-sm font-black">📤 PUSH 권한 전송</button>
                 )}
               </section>
             </div>
