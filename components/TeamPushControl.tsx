@@ -73,7 +73,9 @@ const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUp
   const validatePushes = (): string | null => {
     if (totalUsed !== team.totalPushAllowance) return "모든 PUSH 칸수를 정확히 사용해야 합니다.";
     const activeRacers = pushes.filter(p => p !== 0).length;
-    if (activeRacers < 3) return "최소 3명의 레이서에게 배분해야 합니다.";
+    // PUSH가 4개 이하이면 최소 2명, 그 외에는 최소 3명의 레이서에게 배분
+    const minRacers = team.totalPushAllowance <= 4 ? 2 : 3;
+    if (activeRacers < minRacers) return `최소 ${minRacers}명의 레이서에게 배분해야 합니다.`;
     const maxAllowedPerRacer = Math.floor(team.totalPushAllowance * 0.7);
     if (pushes.some(p => Math.abs(p) > maxAllowedPerRacer)) {
       return `한 레이서에게 과도한 배정은 금지됩니다 (최대 ${maxAllowedPerRacer}칸).`;
