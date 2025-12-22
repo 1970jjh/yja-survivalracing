@@ -5,10 +5,10 @@ import { updateTimerPartial } from '../firebase';
 import TeamPushControl from './TeamPushControl';
 import TeamSponsorship from './TeamSponsorship';
 
-// 자동차 시동 소리 URL (무료 효과음)
-const CAR_ENGINE_SOUND = 'https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3';
-// 타이머 알람 소리 URL
-const TIMER_ALARM_SOUND = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3';
+// 자동차 시동 소리 URL (무료 효과음 - Pixabay)
+const CAR_ENGINE_SOUND = 'https://cdn.pixabay.com/audio/2022/03/10/audio_c8c8a73467.mp3';
+// 타이머 알람 소리 URL (무료 효과음 - Pixabay)
+const TIMER_ALARM_SOUND = 'https://cdn.pixabay.com/audio/2021/08/04/audio_0625c1539c.mp3';
 
 interface AdminDashboardProps {
   gameState: GameState;
