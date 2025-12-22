@@ -52,23 +52,37 @@ const TeamJoin: React.FC<TeamJoinProps> = ({ gameState, onJoin, onBack, selected
            team.members.every(m => m.name && m.name.trim() !== '');
   };
 
-  // 선택된 팀의 정보로 폼 초기화
+  // 선택된 팀의 정보로 폼 초기화 (팀 변경 시 항상 해당 팀 데이터로 리셋)
   useEffect(() => {
     if (selectedTeamIndex) {
       const existingTeam = getTeamAtSlot(selectedTeamIndex);
       if (existingTeam && isTeamComplete(existingTeam)) {
+        // 완성된 팀의 데이터로 설정
         setTeamName(existingTeam.name || '');
         setSlogan(existingTeam.slogan || '');
         if (existingTeam.members && existingTeam.members.length > 0) {
-          setMembers(existingTeam.members);
+          // 깊은 복사로 독립적인 배열 생성
+          setMembers(existingTeam.members.map(m => ({ ...m })));
         }
+      } else {
+        // 미완성 팀이면 폼 초기화
+        setTeamName('');
+        setSlogan('');
+        setMembers(Object.values(UserRole).map(role => ({ name: '', role })));
       }
+    } else {
+      // 팀 선택 해제 시 폼 초기화
+      setTeamName('');
+      setSlogan('');
+      setMembers(Object.values(UserRole).map(role => ({ name: '', role })));
     }
   }, [selectedTeamIndex, teams]);
 
   const handleMemberChange = (index: number, name: string) => {
-    const newMembers = [...members];
-    newMembers[index].name = name;
+    // 깊은 복사로 독립적인 배열 생성
+    const newMembers = members.map((m, i) =>
+      i === index ? { ...m, name } : { ...m }
+    );
     setMembers(newMembers);
   };
 
