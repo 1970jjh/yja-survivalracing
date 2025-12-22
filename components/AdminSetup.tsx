@@ -107,12 +107,12 @@ const AdminSetup: React.FC<AdminSetupProps> = ({ onCancel, onCreate, onSelectGam
 
   const handleDeleteGame = (gameId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    // INP 최적화: 비동기로 confirm 처리
-    requestAnimationFrame(() => {
+    // INP 최적화: setTimeout으로 확실하게 다음 이벤트 루프에서 처리
+    setTimeout(() => {
       if (confirm('이 게임을 삭제하시겠습니까?')) {
         onDeleteGame(gameId);
       }
-    });
+    }, 0);
   };
 
   // 퀵 타이머 팝업 컴포넌트
