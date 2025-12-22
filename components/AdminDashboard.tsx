@@ -601,7 +601,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           {Array.from({ length: 20 }, (_, i) => (
                             <div
                               key={i}
-                              className={`flex-1 border-r border-black/30 ${i === 19 ? 'bg-yellow-100' : ''}`}
+                              className={`flex-1 border-r border-black/30 ${i === 19 ? 'checkered-finish' : ''}`}
                             ></div>
                           ))}
 
