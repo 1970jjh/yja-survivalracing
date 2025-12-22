@@ -326,6 +326,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     });
   };
 
+  // 이미 공개된 팀 결과 다시보기 (자동차 위치 변경 없음)
+  const showTeamResultAgain = (teamId: string) => {
+    const newRevealState: RevealState = {
+      ...gameState.revealState,
+      revealedTeamIds: gameState.revealState?.revealedTeamIds || [],
+      currentRevealingTeamId: teamId
+    };
+    updateState({
+      ...gameState,
+      revealState: newRevealState
+    });
+  };
+
   // 다음 라운드로 - INP 최적화
   const nextRound = () => {
     requestAnimationFrame(() => {
@@ -769,6 +782,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           {gameState.status === 'REVEALING' && !isRevealed && (
                             <button onClick={() => revealTeam(team.id)} className="text-[9px] font-black px-2 py-1 bg-pink-500 text-white">
                               공개
+                            </button>
+                          )}
+                          {gameState.status === 'REVEALING' && isRevealed && (
+                            <button onClick={() => showTeamResultAgain(team.id)} className="text-[9px] font-black px-2 py-1 bg-blue-500 text-white">
+                              결과다시보기
                             </button>
                           )}
                           {team.hasSubmittedPushes && (
