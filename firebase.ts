@@ -128,6 +128,16 @@ export const updateTeamPartial = async (
   await update(teamRef, cleanedUpdates);
 };
 
+// 타이머만 부분 업데이트 (팀 데이터 덮어쓰기 방지)
+export const updateTimerPartial = async (
+  gameId: string,
+  timerUpdates: Partial<GameState['timer']>
+): Promise<void> => {
+  const timerRef = ref(database, `games/${gameId}/timer`);
+  const cleanedUpdates = removeUndefined(timerUpdates);
+  await update(timerRef, cleanedUpdates);
+};
+
 // 게임 삭제
 export const deleteGame = async (gameId: string): Promise<void> => {
   const gameRef = ref(database, `games/${gameId}`);

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GameState, Team, TimerState, RevealState } from '../types';
 import { CarIcon } from '../constants';
+import { updateTimerPartial } from '../firebase';
 import TeamPushControl from './TeamPushControl';
 import TeamSponsorship from './TeamSponsorship';
 
@@ -81,35 +82,37 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   }, [gameState.status]);
 
-  // 타이머 카운트다운
+  // 타이머 카운트다운 - 부분 업데이트 사용 (팀 데이터 덮어쓰기 방지)
   useEffect(() => {
     if (!gameState.timer?.isRunning || gameState.timer.remainingSeconds <= 0) return;
 
-    const interval = setInterval(() => {
-      const newTimer: TimerState = {
-        ...gameState.timer,
-        remainingSeconds: Math.max(0, gameState.timer.remainingSeconds - 1)
-      };
+    const interval = setInterval(async () => {
+      const newRemaining = Math.max(0, gameState.timer.remainingSeconds - 1);
 
-      // 시간이 다 되면 자동 종료
-      if (newTimer.remainingSeconds <= 0) {
-        newTimer.isRunning = false;
-        // 제출하지 않은 팀은 랜덤 배분
-        const currentTeams = gameState.teams || [];
-        const updatedTeams = currentTeams.map(team => {
-          if (!team.hasSubmittedPushes && team.totalPushAllowance > 0) {
-            return randomlyDistributePush(team);
-          }
-          return team;
-        });
-        updateState({ ...gameState, timer: newTimer, teams: updatedTeams });
+      // 시간이 다 되면 타이머만 정지 (자동 랜덤 배분 없음 - 참가자가 직접 제출해야 함)
+      if (newRemaining <= 0) {
+        try {
+          await updateTimerPartial(gameState.id, {
+            isRunning: false,
+            remainingSeconds: 0
+          });
+        } catch (error) {
+          console.error('타이머 업데이트 실패:', error);
+        }
       } else {
-        updateState({ ...gameState, timer: newTimer });
+        // 타이머만 부분 업데이트 (팀 데이터 보존)
+        try {
+          await updateTimerPartial(gameState.id, {
+            remainingSeconds: newRemaining
+          });
+        } catch (error) {
+          console.error('타이머 업데이트 실패:', error);
+        }
       }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [gameState.timer?.isRunning, gameState.timer?.remainingSeconds]);
+  }, [gameState.timer?.isRunning, gameState.timer?.remainingSeconds, gameState.id]);
 
   // 퀵 타이머 카운트다운
   useEffect(() => {
@@ -151,30 +154,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setQuickTimerRunning(false);
     setQuickTimerRemaining(0);
     stopAlarmSound();
-  };
-
-  // 랜덤 Push 배분 (시간 초과 시)
-  const randomlyDistributePush = (team: Team): Team => {
-    const totalPush = team.totalPushAllowance;
-    const racerIds = [1, 2, 3, 4, 5, 6, 7, 8];
-    const shuffled = racerIds.sort(() => Math.random() - 0.5);
-    const selectedRacers = shuffled.slice(0, 3);
-
-    const pushes = [];
-    let remaining = totalPush;
-
-    for (let i = 0; i < 3; i++) {
-      const maxForThis = Math.min(remaining, Math.floor(totalPush * 0.5));
-      const amount = i === 2 ? remaining : Math.floor(Math.random() * maxForThis) + 1;
-      pushes.push({ racerId: selectedRacers[i], count: amount });
-      remaining -= amount;
-    }
-
-    return {
-      ...team,
-      currentRoundPushes: pushes,
-      hasSubmittedPushes: true
-    };
   };
 
   // 미니게임 시작
@@ -286,35 +265,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const currentTeams = gameState.teams || [];
     // 모든 팀이 제출했는지 확인
     const allSubmitted = currentTeams.every(t => t.hasSubmittedPushes || t.totalPushAllowance === 0);
-    const timerRemaining = gameState.timer?.remainingSeconds || 0;
-    if (!allSubmitted && timerRemaining > 0) {
-      if (!confirm('아직 제출하지 않은 팀이 있습니다. 그래도 결과 공개를 시작하시겠습니까?')) {
+    if (!allSubmitted) {
+      // 미제출 팀이 있으면 확인 (자동 랜덤 배분 없음 - 0으로 처리)
+      if (!confirm('아직 제출하지 않은 팀이 있습니다. 미제출 팀은 PUSH 0으로 처리됩니다. 계속하시겠습니까?')) {
         return;
       }
-      // 비동기로 상태 업데이트 (INP 최적화)
-      requestAnimationFrame(() => {
-        const updatedTeams = currentTeams.map(team => {
-          if (!team.hasSubmittedPushes && team.totalPushAllowance > 0) {
-            return randomlyDistributePush(team);
-          }
-          return team;
-        });
-        updateState({
-          ...gameState,
-          teams: updatedTeams,
-          status: 'REVEALING',
-          timer: { ...timer, isRunning: false }
-        });
-      });
-    } else {
-      requestAnimationFrame(() => {
-        updateState({
-          ...gameState,
-          status: 'REVEALING',
-          timer: { ...timer, isRunning: false }
-        });
-      });
     }
+    // 비동기로 상태 업데이트 (INP 최적화)
+    requestAnimationFrame(() => {
+      updateState({
+        ...gameState,
+        status: 'REVEALING',
+        timer: { ...timer, isRunning: false }
+      });
+    });
   };
 
   // 팀 결과 공개 (한 팀씩) - INP 최적화
