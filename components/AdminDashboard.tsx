@@ -9,6 +9,10 @@ import TeamSponsorship from './TeamSponsorship';
 const CAR_ENGINE_SOUND = 'https://cdn.jsdelivr.net/gh/1970jjh/yja-survivalracing@main/car-engine-roaring-376881.mp3';
 // 타이머 알람 소리 URL (무료 효과음 - Pixabay)
 const TIMER_ALARM_SOUND = 'https://cdn.pixabay.com/audio/2021/08/04/audio_0625c1539c.mp3';
+// 미니게임 시작 효과음 (휘슬/시작 소리)
+const GAME_START_SOUND = 'https://cdn.pixabay.com/audio/2022/03/15/audio_8cb749bf1c.mp3';
+// 축하 환호 효과음
+const CELEBRATION_SOUND = 'https://cdn.pixabay.com/audio/2021/08/04/audio_12b0c7443c.mp3';
 
 interface AdminDashboardProps {
   gameState: GameState;
@@ -34,6 +38,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [showMiniGamePopup, setShowMiniGamePopup] = useState(true);
   const carSoundRef = useRef<HTMLAudioElement | null>(null);
   const alarmSoundRef = useRef<HTMLAudioElement | null>(null);
+  const gameStartSoundRef = useRef<HTMLAudioElement | null>(null);
+  const celebrationSoundRef = useRef<HTMLAudioElement | null>(null);
 
   // 퀵 타이머 상태
   const [showQuickTimer, setShowQuickTimer] = useState(false);
@@ -66,6 +72,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (alarmSoundRef.current) {
       alarmSoundRef.current.pause();
       alarmSoundRef.current.currentTime = 0;
+    }
+  };
+
+  // 미니게임 시작 소리 재생 함수
+  const playGameStartSound = () => {
+    if (gameStartSoundRef.current) {
+      gameStartSoundRef.current.currentTime = 0;
+      gameStartSoundRef.current.play().catch(() => {});
+    }
+  };
+
+  // 축하 환호 소리 재생 함수
+  const playCelebrationSound = () => {
+    if (celebrationSoundRef.current) {
+      celebrationSoundRef.current.currentTime = 0;
+      celebrationSoundRef.current.play().catch(() => {});
     }
   };
 
@@ -166,6 +188,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // 미니게임 시작
   const startMiniGame = () => {
+    playGameStartSound(); // 미니게임 시작 효과음
     updateState({ ...gameState, status: 'MINI_GAME' });
   };
 
@@ -320,10 +343,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       // 공개된 팀 목록에 추가
       const currentRevealedIds = gameState.revealState?.revealedTeamIds || [];
+      const newRevealedIds = [...currentRevealedIds, teamId];
       const newRevealState: RevealState = {
-        revealedTeamIds: [...currentRevealedIds, teamId],
+        revealedTeamIds: newRevealedIds,
         currentRevealingTeamId: teamId
       };
+
+      // 마지막 팀 공개 시 축하 효과음
+      if (newRevealedIds.length === currentTeams.length) {
+        setTimeout(() => playCelebrationSound(), 500);
+      }
 
       updateState({
         ...gameState,
@@ -448,6 +477,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       <audio ref={carSoundRef} src={CAR_ENGINE_SOUND} preload="auto" />
       {/* 타이머 알람 소리 */}
       <audio ref={alarmSoundRef} src={TIMER_ALARM_SOUND} preload="auto" loop />
+      {/* 미니게임 시작 소리 */}
+      <audio ref={gameStartSoundRef} src={GAME_START_SOUND} preload="auto" />
+      {/* 축하 환호 소리 */}
+      <audio ref={celebrationSoundRef} src={CELEBRATION_SOUND} preload="auto" />
 
       {/* BGM */}
       {isMusicPlaying && (
