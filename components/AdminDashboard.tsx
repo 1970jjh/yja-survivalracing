@@ -570,77 +570,77 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     {i + 1}
                   </div>
                 ))}
-                <div className="w-24 flex-shrink-0 relative overflow-hidden">
-                  <img src={CLIFF_IMAGE} alt="Cliff" className="absolute inset-0 w-full h-full object-cover" />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                    <span className="text-xs font-black text-white drop-shadow-lg">CLIFF</span>
-                  </div>
+                <div className="w-28 flex-shrink-0 bg-black/40 flex items-center justify-center">
+                  <span className="text-sm font-black text-white drop-shadow-lg">CLIFF</span>
                 </div>
               </div>
 
-              {/* 레이서 트랙 - 그리드 정렬 */}
-              <div className="flex-1 flex flex-col border-4 border-black border-t-0">
-                {racers.map(racer => {
-                  // 현재 공개된 팀의 이 레이서에 대한 푸시 찾기
-                  const revealingTeam = revealState.currentRevealingTeamId
-                    ? teams.find(t => t.id === revealState.currentRevealingTeamId)
-                    : null;
-                  const currentPush = revealingTeam?.currentRoundPushes?.find(p => p.racerId === racer.id);
+              {/* 레이서 트랙 + 절벽 통합 영역 */}
+              <div className="flex-1 flex border-4 border-black border-t-0">
+                {/* 트랙 영역 */}
+                <div className="flex-1 flex flex-col">
+                  {racers.map(racer => {
+                    // 현재 공개된 팀의 이 레이서에 대한 푸시 찾기
+                    const revealingTeam = revealState.currentRevealingTeamId
+                      ? teams.find(t => t.id === revealState.currentRevealingTeamId)
+                      : null;
+                    const currentPush = revealingTeam?.currentRoundPushes?.find(p => p.racerId === racer.id);
 
-                  return (
-                    <div key={racer.id} className="flex-1 flex border-b border-black last:border-b-0 min-h-[50px]">
-                      {/* 트랙 번호 라벨 */}
-                      <div className="w-20 bg-black flex items-center justify-center flex-shrink-0 gap-1">
-                        <span className="text-white font-black text-[10px]">TRK {racer.id}</span>
-                        <div className="w-4 h-4 border border-white" style={{ backgroundColor: racer.color }}></div>
-                      </div>
+                    return (
+                      <div key={racer.id} className="flex-1 flex border-b border-black last:border-b-0 min-h-[60px]">
+                        {/* 트랙 번호 라벨 */}
+                        <div className="w-20 bg-black flex items-center justify-center flex-shrink-0 gap-1">
+                          <span className="text-white font-black text-[10px]">TRK {racer.id}</span>
+                          <div className="w-4 h-4 border border-white" style={{ backgroundColor: racer.color }}></div>
+                        </div>
 
-                      {/* 20칸 그리드 */}
-                      <div className="flex-1 flex relative">
-                        {Array.from({ length: 20 }, (_, i) => (
+                        {/* 20칸 그리드 */}
+                        <div className="flex-1 flex relative">
+                          {Array.from({ length: 20 }, (_, i) => (
+                            <div
+                              key={i}
+                              className={`flex-1 border-r border-black/30 ${i === 19 ? 'bg-yellow-100' : ''}`}
+                            ></div>
+                          ))}
+
+                          {/* 자동차 + 푸시 표시 */}
                           <div
-                            key={i}
-                            className={`flex-1 border-r border-black/30 ${i === 19 ? 'bg-yellow-100' : ''}`}
-                          ></div>
-                        ))}
+                            className="absolute inset-y-0 transition-all duration-1000 ease-in-out flex items-center z-10"
+                            style={{
+                              // 각 칸의 중앙에 정확하게 위치시키기: 칸 N의 중앙 = (N - 0.5) / 20 * 100%
+                              left: racer.position > 20 ? '105%' : racer.position <= 0 ? '0%' : `${((racer.position - 0.5) / 20) * 100}%`,
+                              transform: `translateX(-50%) ${racer.isEliminated && racer.position > 20 ? 'rotate(90deg) translateY(100px)' : racer.isEliminated ? 'rotate(45deg) scale(0.6)' : ''}`,
+                              opacity: racer.isEliminated && racer.position > 20 ? 0 : racer.isEliminated ? 0.3 : 1
+                            }}
+                          >
+                            <div className="flex items-center gap-1">
+                              {/* 마이너스 표시 (왼쪽) */}
+                              {currentPush && currentPush.count < 0 && (
+                                <span className="text-blue-600 font-black text-xl">{currentPush.count}</span>
+                              )}
 
-                        {/* 자동차 + 푸시 표시 */}
-                        <div
-                          className="absolute inset-y-0 transition-all duration-1000 ease-in-out flex items-center z-10"
-                          style={{
-                            // 각 칸의 중앙에 정확하게 위치시키기: 칸 N의 중앙 = (N - 0.5) / 20 * 100%
-                            left: racer.position > 20 ? '105%' : racer.position <= 0 ? '0%' : `${((racer.position - 0.5) / 20) * 100}%`,
-                            transform: `translateX(-50%) ${racer.isEliminated && racer.position > 20 ? 'rotate(90deg) translateY(100px)' : racer.isEliminated ? 'rotate(45deg) scale(0.6)' : ''}`,
-                            opacity: racer.isEliminated && racer.position > 20 ? 0 : racer.isEliminated ? 0.3 : 1
-                          }}
-                        >
-                          <div className="flex items-center gap-1">
-                            {/* 마이너스 표시 (왼쪽) */}
-                            {currentPush && currentPush.count < 0 && (
-                              <span className="text-blue-600 font-black text-lg">{currentPush.count}</span>
-                            )}
+                              {/* 자동차 이미지 - 2배 크기 */}
+                              <div className="bg-white/80 rounded shadow-lg">
+                                <RacerCarImage racerId={racer.id} size={88} />
+                              </div>
 
-                            {/* 자동차 이미지 */}
-                            <div className="bg-white/80 rounded shadow-lg">
-                              <RacerCarImage racerId={racer.id} size={44} />
+                              {/* 플러스 표시 (오른쪽) */}
+                              {currentPush && currentPush.count > 0 && (
+                                <span className="text-red-600 font-black text-xl">+{currentPush.count}</span>
+                              )}
                             </div>
-
-                            {/* 플러스 표시 (오른쪽) */}
-                            {currentPush && currentPush.count > 0 && (
-                              <span className="text-red-600 font-black text-lg">+{currentPush.count}</span>
-                            )}
                           </div>
                         </div>
                       </div>
+                    );
+                  })}
+                </div>
 
-                      {/* 절벽 영역 - 이미지 배경 */}
-                      <div className="w-24 relative overflow-hidden flex-shrink-0 border-l-2 border-black">
-                        <img src={CLIFF_IMAGE} alt="Cliff" className="absolute inset-0 w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-black/20"></div>
-                      </div>
-                    </div>
-                  );
-                })}
+                {/* 절벽 영역 - 하나의 통합 이미지 */}
+                <div className="w-28 relative overflow-hidden flex-shrink-0 border-l-4 border-black">
+                  <img src={CLIFF_IMAGE} alt="Cliff" className="absolute inset-0 w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-l from-transparent to-black/30"></div>
+                </div>
               </div>
             </div>
 
