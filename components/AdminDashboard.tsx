@@ -492,7 +492,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           {/* QR 코드 - 교육생 참가용 */}
           <div className="flex flex-col items-center bg-white p-1 rounded border-2 border-black">
             <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=${encodeURIComponent(window.location.origin + '?game=' + gameState.id)}`}
+              src="https://i.ibb.co/tMvtGZcW/qr1.png"
               alt="참가 QR"
               className="w-[60px] h-[60px]"
             />
