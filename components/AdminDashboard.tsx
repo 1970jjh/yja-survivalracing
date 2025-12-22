@@ -620,9 +620,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               )}
 
                               {/* 자동차 이미지 - 2배 크기 */}
-                              <div className="bg-white/80 rounded shadow-lg">
-                                <RacerCarImage racerId={racer.id} size={88} />
-                              </div>
+                              <RacerCarImage racerId={racer.id} size={88} />
 
                               {/* 플러스 표시 (오른쪽) */}
                               {currentPush && currentPush.count > 0 && (
