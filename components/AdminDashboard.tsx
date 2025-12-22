@@ -5,8 +5,8 @@ import { updateTimerPartial } from '../firebase';
 import TeamPushControl from './TeamPushControl';
 import TeamSponsorship from './TeamSponsorship';
 
-// F1 레이싱 카 사운드 URL (무료 효과음 - Freesound.org)
-const CAR_ENGINE_SOUND = 'https://cdn.freesound.org/previews/352/352659_6601240-lq.mp3';
+// F1 레이싱 카 사운드 URL
+const CAR_ENGINE_SOUND = 'https://cdn.jsdelivr.net/gh/1970jjh/yja-survivalracing@main/car-engine-roaring-376881.mp3';
 // 타이머 알람 소리 URL (무료 효과음 - Pixabay)
 const TIMER_ALARM_SOUND = 'https://cdn.pixabay.com/audio/2021/08/04/audio_0625c1539c.mp3';
 
