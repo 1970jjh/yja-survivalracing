@@ -182,7 +182,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     // 순위가 1 이상인 팀 확인
     const teamsWithRanks = currentTeams.filter(t => teamRanks[t.id] >= 1);
     if (teamsWithRanks.length === 0) {
-      setTimeout(() => alert('최소 1개 팀의 순위를 입력해주세요.'), 0);
+      setTimeout(() => alert('최소 1개 팀의 순위를 입력해주세요.'), 50);
       return;
     }
 

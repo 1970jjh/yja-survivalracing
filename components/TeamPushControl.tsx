@@ -88,7 +88,7 @@ const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUp
   const handleSubmit = () => {
     const error = validatePushes();
     if (error) {
-      setTimeout(() => alert(error), 0);
+      setTimeout(() => alert(error), 50);
       return;
     }
 

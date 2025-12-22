@@ -98,24 +98,24 @@ const AdminSetup: React.FC<AdminSetupProps> = ({ onCancel, onCreate, onSelectGam
   };
 
   const handleUnlock = () => {
-    // INP 최적화: setTimeout으로 UI 업데이트 후 처리
+    // INP 최적화: 50ms 지연으로 UI 업데이트 완료 후 처리
     setTimeout(() => {
       if (password === ADMIN_PASSWORD) {
         setIsUnlocked(true);
       } else {
         alert('비밀번호가 틀렸습니다.');
       }
-    }, 0);
+    }, 50);
   };
 
   const handleDeleteGame = (gameId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    // INP 최적화: setTimeout으로 확실하게 다음 이벤트 루프에서 처리
+    // INP 최적화: 50ms 지연으로 UI 업데이트 완료 후 처리
     setTimeout(() => {
       if (confirm('이 게임을 삭제하시겠습니까?')) {
         onDeleteGame(gameId);
       }
-    }, 0);
+    }, 50);
   };
 
   // 퀵 타이머 팝업 컴포넌트

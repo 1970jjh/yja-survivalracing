@@ -263,7 +263,7 @@ const TeamJoin: React.FC<TeamJoinProps> = ({ gameState, onJoin, onBack, selected
           <button
             onClick={() => {
               if (!isFormValid) {
-                setTimeout(() => alert('팀명, 구호, 모든 역할의 이름을 입력해주세요.'), 0);
+                setTimeout(() => alert('팀명, 구호, 모든 역할의 이름을 입력해주세요.'), 50);
                 return;
               }
               onJoin({ name: teamName, slogan, members }, selectedTeamIndex);
