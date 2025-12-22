@@ -25,7 +25,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   previewMode,
   onTogglePreview
 }) => {
-  const [totalPushInput, setTotalPushInput] = useState(gameState.adminTotalPush || 10);
+  const [totalPushInput, setTotalPushInput] = useState(gameState.adminTotalPush || 12);
   const [timerMinutes, setTimerMinutes] = useState(3);
   const [teamRanks, setTeamRanks] = useState<Record<string, number>>({});
   const [pendingAllocations, setPendingAllocations] = useState<Record<string, number>>({});
@@ -96,6 +96,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             isRunning: false,
             remainingSeconds: 0
           });
+          // 시간 종료 시 알람 3초간 재생
+          playAlarmSound();
+          setTimeout(() => {
+            stopAlarmSound();
+          }, 3000);
         } catch (error) {
           console.error('타이머 업데이트 실패:', error);
         }
@@ -122,8 +127,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setQuickTimerRemaining(prev => {
         if (prev <= 1) {
           setQuickTimerRunning(false);
-          // 시간 종료 시 알람 재생
+          // 시간 종료 시 알람 3초간 재생
           playAlarmSound();
+          setTimeout(() => {
+            stopAlarmSound();
+          }, 3000);
           return 0;
         }
         return prev - 1;
