@@ -229,7 +229,7 @@ const App: React.FC = () => {
         isEliminated: false
       })),
       teams: [],
-      adminTotalPush: 47,
+      adminTotalPush: 12,
       revealState: initialReveal,
       createdAt: now,
       updatedAt: now
