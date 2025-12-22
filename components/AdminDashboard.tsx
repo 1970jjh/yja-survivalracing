@@ -10,7 +10,7 @@ const CAR_ENGINE_SOUND = 'https://cdn.jsdelivr.net/gh/1970jjh/yja-survivalracing
 // 타이머 알람 소리 URL (무료 효과음 - Pixabay)
 const TIMER_ALARM_SOUND = 'https://cdn.pixabay.com/audio/2021/08/04/audio_0625c1539c.mp3';
 // 미니게임 시작 효과음 (휘슬/시작 소리)
-const GAME_START_SOUND = 'https://cdn.pixabay.com/audio/2022/03/15/audio_8cb749bf1c.mp3';
+const GAME_START_SOUND = 'https://cdn.freesound.org/previews/263/263123_2064400-lq.mp3';
 // 축하 환호 효과음
 const CELEBRATION_SOUND = 'https://cdn.pixabay.com/audio/2021/08/04/audio_12b0c7443c.mp3';
 
@@ -437,7 +437,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       if (confirm('게임을 완전히 종료하시겠습니까?')) {
         updateState({ ...gameState, status: 'FINISHED' });
       }
-    }, 0);
+    }, 50);
   };
 
   // 게임 리셋 - INP 최적화 (setTimeout으로 다음 이벤트 루프에서 처리)
@@ -447,7 +447,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         updateState(null);
         onExit();
       }
-    }, 0);
+    }, 50);
   };
 
   // 타이머 포맷팅
