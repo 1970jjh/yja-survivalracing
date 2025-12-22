@@ -87,7 +87,10 @@ const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUp
   // 제출 시 로컬 상태 먼저 업데이트 후 Firebase에 저장
   const handleSubmit = () => {
     const error = validatePushes();
-    if (error) return alert(error);
+    if (error) {
+      setTimeout(() => alert(error), 0);
+      return;
+    }
 
     // PUSH 결정 데이터 생성
     const decisions: PushDecision[] = pushes

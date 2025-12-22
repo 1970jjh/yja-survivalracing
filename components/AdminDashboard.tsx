@@ -182,7 +182,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     // 순위가 1 이상인 팀 확인
     const teamsWithRanks = currentTeams.filter(t => teamRanks[t.id] >= 1);
     if (teamsWithRanks.length === 0) {
-      alert('최소 1개 팀의 순위를 입력해주세요.');
+      setTimeout(() => alert('최소 1개 팀의 순위를 입력해주세요.'), 0);
       return;
     }
 
@@ -268,25 +268,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     updateState({ ...gameState, timer: newTimer });
   };
 
-  // 결과 공개 모드로 전환 (INP 최적화: 비동기 처리)
+  // 결과 공개 모드로 전환 (INP 최적화: setTimeout으로 처리)
   const startRevealing = () => {
-    const currentTeams = gameState.teams || [];
-    // 모든 팀이 제출했는지 확인
-    const allSubmitted = currentTeams.every(t => t.hasSubmittedPushes || t.totalPushAllowance === 0);
-    if (!allSubmitted) {
-      // 미제출 팀이 있으면 확인 (자동 랜덤 배분 없음 - 0으로 처리)
-      if (!confirm('아직 제출하지 않은 팀이 있습니다. 미제출 팀은 PUSH 0으로 처리됩니다. 계속하시겠습니까?')) {
-        return;
+    setTimeout(() => {
+      const currentTeams = gameState.teams || [];
+      // 모든 팀이 제출했는지 확인
+      const allSubmitted = currentTeams.every(t => t.hasSubmittedPushes || t.totalPushAllowance === 0);
+      if (!allSubmitted) {
+        // 미제출 팀이 있으면 확인 (자동 랜덤 배분 없음 - 0으로 처리)
+        if (!confirm('아직 제출하지 않은 팀이 있습니다. 미제출 팀은 PUSH 0으로 처리됩니다. 계속하시겠습니까?')) {
+          return;
+        }
       }
-    }
-    // 비동기로 상태 업데이트 (INP 최적화)
-    requestAnimationFrame(() => {
       updateState({
         ...gameState,
         status: 'REVEALING',
         timer: { ...timer, isRunning: false }
       });
-    });
+    }, 0);
   };
 
   // 팀 결과 공개 (한 팀씩) - INP 최적화

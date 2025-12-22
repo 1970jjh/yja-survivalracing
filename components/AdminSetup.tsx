@@ -98,11 +98,14 @@ const AdminSetup: React.FC<AdminSetupProps> = ({ onCancel, onCreate, onSelectGam
   };
 
   const handleUnlock = () => {
-    if (password === ADMIN_PASSWORD) {
-      setIsUnlocked(true);
-    } else {
-      alert('비밀번호가 틀렸습니다.');
-    }
+    // INP 최적화: setTimeout으로 UI 업데이트 후 처리
+    setTimeout(() => {
+      if (password === ADMIN_PASSWORD) {
+        setIsUnlocked(true);
+      } else {
+        alert('비밀번호가 틀렸습니다.');
+      }
+    }, 0);
   };
 
   const handleDeleteGame = (gameId: string, e: React.MouseEvent) => {

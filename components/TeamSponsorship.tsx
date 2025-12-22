@@ -27,7 +27,7 @@ const TeamSponsorship: React.FC<TeamSponsorshipProps> = ({ team, gameState, onUp
   const validate = () => {
     const unique = new Set(spons);
     if (unique.size < 3) {
-      alert("한 레이서에게 중복해서 스폰할 수 없습니다. 각각 다른 레이서를 선택해주세요!");
+      setTimeout(() => alert("한 레이서에게 중복해서 스폰할 수 없습니다. 각각 다른 레이서를 선택해주세요!"), 0);
       return false;
     }
     return true;
