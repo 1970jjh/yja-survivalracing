@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Team, GameState, PushDecision } from '../types';
+import { RacerCarImage } from '../constants';
 
 interface TeamPushControlProps {
   team: Team;
@@ -140,8 +141,9 @@ const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUp
         {showSponsoredRacers && sponsorships.length > 0 && (
           <div className="mt-2 grid grid-cols-3 gap-2 animate-pulse">
             {sponsorships.map((s, i) => (
-              <div key={i} className="bg-yellow-400 text-black p-2 rounded-lg text-center border-2 border-white">
-                <span className="text-2xl font-black">#{s.racerId}</span>
+              <div key={i} className="bg-yellow-400 text-black p-2 rounded-lg text-center border-2 border-white flex flex-col items-center">
+                <RacerCarImage racerId={String(s.racerId)} size={36} />
+                <span className="text-lg font-black">#{s.racerId}</span>
                 <span className="text-[10px] block font-bold">{s.amount}천만</span>
               </div>
             ))}
@@ -170,11 +172,10 @@ const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUp
             <h3 className="text-xl font-brutal uppercase mb-6 underline decoration-4 decoration-yellow-400">Tactical Summary</h3>
             <div className="space-y-4">
               {displayPushes.map((p, i) => {
-                const racer = racers[p.racerId - 1];
                 return (
                   <div key={i} className="flex justify-between items-center p-4 border-2 border-black bg-white">
                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 border-2 border-black" style={{ backgroundColor: racer?.color || '#888' }}></div>
+                        <RacerCarImage racerId={String(p.racerId)} size={40} />
                         <span className="font-black text-lg">TRK {p.racerId}</span>
                      </div>
                      <span className={`text-3xl font-racing font-black ${p.count > 0 ? 'text-blue-600' : 'text-red-600'}`}>
@@ -218,9 +219,9 @@ const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUp
            {racers.map((racer, i) => (
              <div key={racer.id} className={`flex items-center gap-3 p-3 brutal-card transition-all ${pushes[i] !== 0 ? 'bg-white border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]' : 'bg-white/80'}`}>
                 <div className="w-16 flex flex-col items-center gap-1 border-r-2 border-black pr-2">
-                  <div className="w-10 h-10 border-4 border-black flex items-center justify-center font-black text-white text-xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-                       style={{ backgroundColor: racer.color }}>
-                    {racer.id}
+                  <div className="relative">
+                    <RacerCarImage racerId={racer.id} size={44} />
+                    <span className="absolute -bottom-1 -right-1 bg-black text-white text-[10px] font-black px-1 rounded">{racer.id}</span>
                   </div>
                   <span className="text-[8px] font-black uppercase">POS: {racer.position}</span>
                 </div>

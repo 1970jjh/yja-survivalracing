@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GameState, Team, TimerState, RevealState } from '../types';
-import { CarIcon } from '../constants';
+import { RacerCarImage, CLIFF_IMAGE } from '../constants';
 import { updateTimerPartial } from '../firebase';
 import TeamPushControl from './TeamPushControl';
 import TeamSponsorship from './TeamSponsorship';
@@ -570,8 +570,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     {i + 1}
                   </div>
                 ))}
-                <div className="w-24 flex-shrink-0 bg-red-200 flex items-center justify-center">
-                  <span className="text-xs font-black text-red-600">CLIFF</span>
+                <div className="w-24 flex-shrink-0 relative overflow-hidden">
+                  <img src={CLIFF_IMAGE} alt="Cliff" className="absolute inset-0 w-full h-full object-cover" />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                    <span className="text-xs font-black text-white drop-shadow-lg">CLIFF</span>
+                  </div>
                 </div>
               </div>
 
@@ -617,9 +620,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               <span className="text-blue-600 font-black text-lg">{currentPush.count}</span>
                             )}
 
-                            {/* 자동차 */}
-                            <div className="p-0.5 bg-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                              <CarIcon color={racer.color} size={28} />
+                            {/* 자동차 이미지 */}
+                            <div className="bg-white/80 rounded shadow-lg">
+                              <RacerCarImage racerId={racer.id} size={44} />
                             </div>
 
                             {/* 플러스 표시 (오른쪽) */}
@@ -630,10 +633,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         </div>
                       </div>
 
-                      {/* 절벽 영역 */}
-                      <div className="w-24 bg-red-200 relative overflow-hidden flex flex-col items-center justify-center flex-shrink-0 border-l-2 border-black">
-                        <span className="text-[8px] font-black text-red-600 uppercase">THE CLIFF</span>
-                        <span className="text-sm">🏜️</span>
+                      {/* 절벽 영역 - 이미지 배경 */}
+                      <div className="w-24 relative overflow-hidden flex-shrink-0 border-l-2 border-black">
+                        <img src={CLIFF_IMAGE} alt="Cliff" className="absolute inset-0 w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/20"></div>
                       </div>
                     </div>
                   );
@@ -961,7 +964,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   .map((racer, idx) => (
                     <div key={racer.id} className={`p-4 border-4 border-black text-center ${racer.isEliminated ? 'bg-gray-300 opacity-50' : idx === 0 ? 'bg-yellow-400' : 'bg-white'}`}>
                       <div className="text-3xl font-black">{racer.isEliminated ? '💀' : `${idx + 1}등`}</div>
-                      <div className="w-12 h-12 mx-auto my-2 border-4 border-black" style={{ backgroundColor: racer.color }}></div>
+                      <div className="flex justify-center my-2">
+                        <RacerCarImage racerId={racer.id} size={56} />
+                      </div>
                       <div className="font-black">{racer.id}번 레이서</div>
                       <div className="text-sm text-black/60">위치: {racer.position}</div>
                     </div>

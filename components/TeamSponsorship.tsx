@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { Team, GameState, Sponsorship } from '../types';
+import { RacerCarImage } from '../constants';
 
 interface TeamSponsorshipProps {
   team: Team;
@@ -80,8 +81,9 @@ const TeamSponsorship: React.FC<TeamSponsorshipProps> = ({ team, gameState, onUp
           {showSponsoredRacers && (
             <div className="mt-2 grid grid-cols-3 gap-2 animate-pulse">
               {sponsorships.map((s, i) => (
-                <div key={i} className="bg-yellow-400 text-black p-2 rounded-lg text-center border-2 border-white">
-                  <span className="text-2xl font-black">#{s.racerId}</span>
+                <div key={i} className="bg-yellow-400 text-black p-2 rounded-lg text-center border-2 border-white flex flex-col items-center">
+                  <RacerCarImage racerId={String(s.racerId)} size={36} />
+                  <span className="text-lg font-black">#{s.racerId}</span>
                   <span className="text-[10px] block font-bold">{s.amount}천만</span>
                 </div>
               ))}
@@ -111,9 +113,10 @@ const TeamSponsorship: React.FC<TeamSponsorshipProps> = ({ team, gameState, onUp
             </div>
             <div className="grid grid-cols-3 gap-3">
                {sponsorships.map((s, i) => (
-                 <div key={i} className="brutal-card bg-white p-4 text-center">
+                 <div key={i} className="brutal-card bg-white p-4 text-center flex flex-col items-center">
                     <p className="text-[10px] font-black text-black/40 mb-2 uppercase">{s.amount}천만</p>
-                    <p className="text-3xl font-brutal text-blue-600 italic">#{s.racerId}</p>
+                    <RacerCarImage racerId={String(s.racerId)} size={48} />
+                    <p className="text-xl font-brutal text-blue-600 italic mt-1">#{s.racerId}</p>
                  </div>
                ))}
             </div>
