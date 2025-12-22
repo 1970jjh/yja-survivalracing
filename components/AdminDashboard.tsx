@@ -591,9 +591,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     return (
                       <div key={racer.id} className="flex-1 flex border-b border-black last:border-b-0 min-h-[60px]">
                         {/* 트랙 번호 라벨 */}
-                        <div className="w-20 bg-black flex items-center justify-center flex-shrink-0 gap-1">
-                          <span className="text-white font-black text-[10px]">TRK {racer.id}</span>
-                          <div className="w-4 h-4 border border-white" style={{ backgroundColor: racer.color }}></div>
+                        <div className="w-20 bg-black flex flex-col items-center justify-center flex-shrink-0">
+                          <span className="text-white font-black text-[8px] leading-none">TRK</span>
+                          <span className="text-white font-black text-2xl leading-none">{racer.id}</span>
                         </div>
 
                         {/* 20칸 그리드 */}
