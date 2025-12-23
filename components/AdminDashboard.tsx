@@ -13,6 +13,10 @@ const TIMER_ALARM_SOUND = 'https://cdn.pixabay.com/audio/2021/08/04/audio_0625c1
 const GAME_START_SOUND = 'https://cdn.freesound.org/previews/263/263123_2064400-lq.mp3';
 // 축하 환호 효과음
 const CELEBRATION_SOUND = 'https://cdn.pixabay.com/audio/2021/08/04/audio_12b0c7443c.mp3';
+// 절벽 추락 효과음
+const CLIFF_FALL_SOUND = 'https://raw.githubusercontent.com/1970jjh/yja-survivalracing/main/queda-do-satelite-402171.mp3';
+// 팡파레 효과음 (최종 결과)
+const FANFARE_SOUND = 'https://cdn.pixabay.com/audio/2022/03/10/audio_132d3a1f05.mp3';
 
 interface AdminDashboardProps {
   gameState: GameState;
@@ -40,6 +44,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const alarmSoundRef = useRef<HTMLAudioElement | null>(null);
   const gameStartSoundRef = useRef<HTMLAudioElement | null>(null);
   const celebrationSoundRef = useRef<HTMLAudioElement | null>(null);
+  const cliffFallSoundRef = useRef<HTMLAudioElement | null>(null);
+  const fanfareSoundRef = useRef<HTMLAudioElement | null>(null);
 
   // 퀵 타이머 상태
   const [showQuickTimer, setShowQuickTimer] = useState(false);
@@ -50,6 +56,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // 최종 결과 단계 (false: 레이서 순위, true: 팀 수익)
   const [showTeamResults, setShowTeamResults] = useState(false);
+
+  // 스폰서십 검증 단계 상태
+  const [showSponsorshipVerify, setShowSponsorshipVerify] = useState(false);
+  const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
+  const [editingSponsorships, setEditingSponsorships] = useState<{racerId: string, amount: number}[]>([]);
 
   // 자동차 소리 재생 함수
   const playCarSound = () => {
@@ -88,6 +99,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (celebrationSoundRef.current) {
       celebrationSoundRef.current.currentTime = 0;
       celebrationSoundRef.current.play().catch(() => {});
+    }
+  };
+
+  // 절벽 추락 소리 재생 함수
+  const playCliffFallSound = () => {
+    if (cliffFallSoundRef.current) {
+      cliffFallSoundRef.current.currentTime = 0;
+      cliffFallSoundRef.current.play().catch(() => {});
+    }
+  };
+
+  // 팡파레 소리 재생 함수
+  const playFanfareSound = () => {
+    if (fanfareSoundRef.current) {
+      fanfareSoundRef.current.currentTime = 0;
+      fanfareSoundRef.current.play().catch(() => {});
     }
   };
 
@@ -324,6 +351,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       const currentRacers = gameState.racers || [];
       const currentPushes = team.currentRoundPushes || [];
+      let hasCliffFall = false;
       // 레이서 위치 업데이트
       const newRacers = currentRacers.map(racer => {
         const push = currentPushes.find(p => p.racerId === racer.id);
@@ -333,6 +361,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           if (newPos > 20) {
             newPos = 21;
             isEliminated = true;
+            hasCliffFall = true; // 절벽 추락 발생
           } else if (newPos < 0) {
             newPos = 0;
           }
@@ -340,6 +369,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         }
         return racer;
       });
+
+      // 절벽 추락 시 효과음 재생 (1초 지연 - 자동차 이동 애니메이션 후)
+      if (hasCliffFall) {
+        setTimeout(() => playCliffFallSound(), 1000);
+      }
 
       // 공개된 팀 목록에 추가
       const currentRevealedIds = gameState.revealState?.revealedTeamIds || [];
@@ -397,10 +431,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     });
   };
 
-  // 최종 결과 계산 - INP 최적화
+  // 최종 결과 계산 - 스폰서십 검증 단계 추가
   const calculateFinalResults = () => {
     // 결과 화면 초기화
     setShowTeamResults(false);
+    // 스폰서십 검증 화면 먼저 표시
+    setShowSponsorshipVerify(true);
+  };
+
+  // 스폰서십 검증 완료 후 실제 결과 계산
+  const proceedToResults = () => {
+    setShowSponsorshipVerify(false);
+    playFanfareSound(); // 팡파레 효과음
 
     requestAnimationFrame(() => {
       const currentRacers = gameState.racers || [];
@@ -429,6 +471,52 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         status: 'RESULTS'
       });
     });
+  };
+
+  // 스폰서십 수정 시작
+  const startEditSponsorship = (team: Team) => {
+    setEditingTeamId(team.id);
+    // 기존 스폰서십 데이터 복사 또는 빈 배열 생성
+    if (team.sponsorships && team.sponsorships.length > 0) {
+      setEditingSponsorships(team.sponsorships.map(s => ({ racerId: s.racerId, amount: s.amount })));
+    } else {
+      // 기본값: 레이서 1, 2, 3에 각각 1천만원
+      setEditingSponsorships([
+        { racerId: '1', amount: 1 },
+        { racerId: '2', amount: 1 },
+        { racerId: '3', amount: 1 }
+      ]);
+    }
+  };
+
+  // 스폰서십 수정 저장
+  const saveEditSponsorship = () => {
+    if (!editingTeamId) return;
+
+    const currentTeams = gameState.teams || [];
+    const newTeams = currentTeams.map(team => {
+      if (team.id === editingTeamId) {
+        return {
+          ...team,
+          sponsorships: editingSponsorships
+        };
+      }
+      return team;
+    });
+
+    updateState({
+      ...gameState,
+      teams: newTeams
+    });
+
+    setEditingTeamId(null);
+    setEditingSponsorships([]);
+  };
+
+  // 스폰서십 수정 취소
+  const cancelEditSponsorship = () => {
+    setEditingTeamId(null);
+    setEditingSponsorships([]);
   };
 
   // 게임 종료 - INP 최적화 (setTimeout으로 다음 이벤트 루프에서 처리)
@@ -476,6 +564,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       <audio ref={gameStartSoundRef} src={GAME_START_SOUND} preload="auto" />
       {/* 축하 환호 소리 */}
       <audio ref={celebrationSoundRef} src={CELEBRATION_SOUND} preload="auto" />
+      {/* 절벽 추락 소리 */}
+      <audio ref={cliffFallSoundRef} src={CLIFF_FALL_SOUND} preload="auto" />
+      {/* 팡파레 소리 */}
+      <audio ref={fanfareSoundRef} src={FANFARE_SOUND} preload="auto" />
 
       {/* BGM */}
       {isMusicPlaying && (
@@ -492,7 +584,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           {/* QR 코드 - 교육생 참가용 */}
           <div className="flex flex-col items-center bg-white p-1 rounded border-2 border-black">
             <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=${encodeURIComponent(window.location.origin + '?game=' + gameState.id)}`}
+              src="https://i.ibb.co/tMvtGZcW/qr1.png"
               alt="참가 QR"
               className="w-[60px] h-[60px]"
             />
@@ -1000,6 +1092,120 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <h2 className="text-4xl font-black mb-2">#{gameState.currentRound}R MINI GAME</h2>
             <p className="text-lg font-black text-black/60">오프라인 미니게임을 진행해주세요!</p>
             <p className="text-sm font-black text-black/40 mt-4">순위 입력 후 "PUSH 권한 전송" 버튼을 눌러주세요</p>
+          </div>
+        </div>
+      )}
+
+      {/* 스폰서십 검증 화면 */}
+      {showSponsorshipVerify && (
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 overflow-auto p-8">
+          <div className="brutal-card bg-white p-8 max-w-4xl w-full">
+            <h1 className="text-3xl font-black text-center mb-6">📋 스폰서십 검증</h1>
+            <p className="text-center text-gray-600 mb-6">최종 결과 공개 전, 모든 팀의 스폰서십 데이터를 확인하세요.</p>
+
+            {/* 팀별 스폰서십 목록 */}
+            <div className="space-y-4 max-h-[400px] overflow-y-auto">
+              {teams
+                .sort((a, b) => (a.index || 0) - (b.index || 0))
+                .map(team => {
+                  const hasSponsorship = team.sponsorships && team.sponsorships.length >= 3;
+                  const isEditing = editingTeamId === team.id;
+
+                  return (
+                    <div key={team.id} className={`p-4 border-4 ${hasSponsorship ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'}`}>
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                          <span className="font-black text-xl">{team.index}조</span>
+                          <span className="font-bold">{team.name}</span>
+                          {!hasSponsorship && (
+                            <span className="text-red-600 font-black text-sm bg-red-200 px-2 py-1 rounded">⚠️ 스폰 없음</span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => startEditSponsorship(team)}
+                          className="brutal-btn px-3 py-2 bg-blue-500 text-white text-sm font-black flex items-center gap-1"
+                        >
+                          ✏️ 수정
+                        </button>
+                      </div>
+
+                      {/* 스폰서십 내용 */}
+                      <div className="mt-2 text-sm">
+                        {hasSponsorship ? (
+                          <span className="text-green-700 font-bold">
+                            스폰: {team.sponsorships?.map(s => `${s.racerId}번(${s.amount}천만)`).join(', ')}
+                          </span>
+                        ) : (
+                          <span className="text-red-600 font-bold">스폰서십 데이터가 없습니다</span>
+                        )}
+                      </div>
+
+                      {/* 수정 폼 */}
+                      {isEditing && (
+                        <div className="mt-4 p-4 bg-white border-2 border-black rounded">
+                          <h4 className="font-black mb-3">스폰서십 수정</h4>
+                          <div className="space-y-2">
+                            {editingSponsorships.map((sponsor, idx) => (
+                              <div key={idx} className="flex gap-2 items-center">
+                                <span className="w-16 font-bold text-sm">스폰 {idx + 1}:</span>
+                                <select
+                                  className="border-2 border-black p-1 font-bold"
+                                  value={sponsor.racerId}
+                                  onChange={(e) => {
+                                    const newSponsorships = [...editingSponsorships];
+                                    newSponsorships[idx].racerId = e.target.value;
+                                    setEditingSponsorships(newSponsorships);
+                                  }}
+                                >
+                                  {[1,2,3,4,5,6,7,8].map(n => (
+                                    <option key={n} value={String(n)}>{n}번 레이서</option>
+                                  ))}
+                                </select>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max="10"
+                                  className="w-16 border-2 border-black p-1 text-center font-bold"
+                                  value={sponsor.amount}
+                                  onChange={(e) => {
+                                    const newSponsorships = [...editingSponsorships];
+                                    newSponsorships[idx].amount = parseInt(e.target.value) || 1;
+                                    setEditingSponsorships(newSponsorships);
+                                  }}
+                                />
+                                <span className="text-sm font-bold">천만원</span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="flex gap-2 mt-4">
+                            <button onClick={saveEditSponsorship} className="brutal-btn px-4 py-2 bg-green-500 text-white text-sm font-black">
+                              ✓ 저장
+                            </button>
+                            <button onClick={cancelEditSponsorship} className="brutal-btn px-4 py-2 bg-gray-400 text-white text-sm font-black">
+                              취소
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
+
+            <div className="flex gap-4 mt-8">
+              <button
+                onClick={() => setShowSponsorshipVerify(false)}
+                className="brutal-btn flex-1 py-4 bg-gray-400 text-white text-xl font-black"
+              >
+                ← 돌아가기
+              </button>
+              <button
+                onClick={proceedToResults}
+                className="brutal-btn flex-1 py-4 bg-green-500 text-white text-xl font-black animate-pulse"
+              >
+                ✅ 검증 완료 - 결과 보기
+              </button>
+            </div>
           </div>
         </div>
       )}
