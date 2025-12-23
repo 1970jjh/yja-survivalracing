@@ -52,10 +52,11 @@ const TeamJoin: React.FC<TeamJoinProps> = ({ gameState, onJoin, onBack, selected
            team.members.every(m => m.name && m.name.trim() !== '');
   };
 
-  // 선택된 팀의 정보로 폼 초기화 (팀 변경 시 항상 해당 팀 데이터로 리셋)
+  // 선택된 팀의 정보로 폼 초기화 (팀 슬롯 선택 변경 시에만 실행)
+  // teams 의존성 제거 - Firebase 업데이트로 인한 폼 초기화 방지
   useEffect(() => {
     if (selectedTeamIndex) {
-      const existingTeam = getTeamAtSlot(selectedTeamIndex);
+      const existingTeam = teams.find((t: Team) => t.index === selectedTeamIndex);
       if (existingTeam && isTeamComplete(existingTeam)) {
         // 완성된 팀의 데이터로 설정
         setTeamName(existingTeam.name || '');
@@ -76,7 +77,8 @@ const TeamJoin: React.FC<TeamJoinProps> = ({ gameState, onJoin, onBack, selected
       setSlogan('');
       setMembers(Object.values(UserRole).map(role => ({ name: '', role })));
     }
-  }, [selectedTeamIndex, teams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTeamIndex]); // teams 의존성 제거 - 팀 슬롯 변경 시에만 초기화
 
   const handleMemberChange = (index: number, name: string) => {
     // 깊은 복사로 독립적인 배열 생성
