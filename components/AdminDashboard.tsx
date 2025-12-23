@@ -684,21 +684,45 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
             {/* 레이스 트랙 */}
             <div className="flex-1 brutal-card p-4 flex flex-col relative overflow-hidden bg-white">
-              {/* 현재 공개 중인 팀 결과 배너 */}
+              {/* 현재 공개 중인 팀 결과 배너 - 브루탈리즘 3D 스타일 */}
               {revealState.currentRevealingTeamId && (
-                <div className="bg-black text-center py-3 mb-2 border-4 border-yellow-400">
+                <div className="bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-400 text-center py-4 mb-2 border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden">
+                  {/* 배경 패턴 */}
+                  <div className="absolute inset-0 opacity-10">
+                    <div className="absolute inset-0" style={{backgroundImage: 'repeating-linear-gradient(45deg, black 0, black 1px, transparent 0, transparent 50%)', backgroundSize: '10px 10px'}}></div>
+                  </div>
                   {(() => {
                     const revealingTeam = teams.find(t => t.id === revealState.currentRevealingTeamId);
                     if (!revealingTeam) return null;
                     const pushes = revealingTeam.currentRoundPushes || [];
-                    const pushText = pushes
-                      .filter(p => p.count !== 0)
-                      .map(p => `${p.racerId}번 ${p.count > 0 ? '+' : ''}${p.count}칸`)
-                      .join(' / ');
+                    const filteredPushes = pushes.filter(p => p.count !== 0);
                     return (
-                      <span className="text-2xl font-black text-red-500">
-                        {revealingTeam.index}조 결과 : {pushText || '없음'}
-                      </span>
+                      <div className="relative z-10 flex items-center justify-center gap-4 flex-wrap">
+                        {/* 팀 이름 배지 */}
+                        <div className="bg-black text-yellow-400 px-4 py-2 border-4 border-yellow-400 shadow-[4px_4px_0px_0px_rgba(250,204,21,1)] transform -rotate-2">
+                          <span className="text-2xl font-black">{revealingTeam.index}조</span>
+                        </div>
+                        <span className="text-3xl font-black text-black">결과</span>
+                        {/* PUSH 결과 뱃지들 */}
+                        <div className="flex gap-2 flex-wrap justify-center">
+                          {filteredPushes.length === 0 ? (
+                            <div className="bg-gray-500 text-white px-4 py-2 border-3 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                              <span className="font-black">없음</span>
+                            </div>
+                          ) : (
+                            filteredPushes.map((p, idx) => (
+                              <div
+                                key={idx}
+                                className={`px-3 py-2 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform ${idx % 2 === 0 ? 'rotate-1' : '-rotate-1'} ${p.count > 0 ? 'bg-red-500' : 'bg-blue-500'}`}
+                              >
+                                <span className="text-white font-black text-lg drop-shadow-[2px_2px_0px_rgba(0,0,0,0.5)]">
+                                  {p.racerId}번 {p.count > 0 ? '+' : ''}{p.count}칸
+                                </span>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
                     );
                   })()}
                 </div>
@@ -755,18 +779,30 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               opacity: racer.isEliminated && racer.position > 20 ? 0 : racer.isEliminated ? 0.3 : 1
                             }}
                           >
-                            <div className="flex items-center gap-1">
-                              {/* 마이너스 표시 (왼쪽) */}
+                            <div className="flex items-center gap-2">
+                              {/* 마이너스 표시 (왼쪽) - 브루탈리즘 3D 스타일 */}
                               {currentPush && currentPush.count < 0 && (
-                                <span className="text-blue-600 font-black text-xl">{currentPush.count}</span>
+                                <div className="relative animate-bounce">
+                                  <div className="bg-blue-500 text-white px-3 py-1 border-3 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transform -rotate-6">
+                                    <span className="font-black text-xl drop-shadow-[1px_1px_0px_rgba(0,0,0,0.8)]">{currentPush.count}</span>
+                                  </div>
+                                  {/* 화살표 */}
+                                  <div className="absolute -right-2 top-1/2 -translate-y-1/2 w-0 h-0 border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent border-l-[10px] border-l-blue-500"></div>
+                                </div>
                               )}
 
                               {/* 자동차 이미지 - 2배 크기 */}
                               <RacerCarImage racerId={racer.id} size={88} />
 
-                              {/* 플러스 표시 (오른쪽) */}
+                              {/* 플러스 표시 (오른쪽) - 브루탈리즘 3D 스타일 */}
                               {currentPush && currentPush.count > 0 && (
-                                <span className="text-red-600 font-black text-xl">+{currentPush.count}</span>
+                                <div className="relative animate-bounce">
+                                  {/* 화살표 */}
+                                  <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-0 h-0 border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent border-r-[10px] border-r-red-500"></div>
+                                  <div className="bg-red-500 text-white px-3 py-1 border-3 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transform rotate-6">
+                                    <span className="font-black text-xl drop-shadow-[1px_1px_0px_rgba(0,0,0,0.8)]">+{currentPush.count}</span>
+                                  </div>
+                                </div>
                               )}
                             </div>
                           </div>
