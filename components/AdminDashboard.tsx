@@ -731,20 +731,28 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               {/* 트랙 번호 - 크고 진하게 */}
               <div className="flex h-10 border-b-4 border-black bg-yellow-50">
                 <div className="w-20 flex-shrink-0"></div>
-                {Array.from({ length: 20 }, (_, i) => (
-                  <div key={i} className="flex-1 flex items-center justify-center text-lg font-black text-black border-r border-black/30">
-                    {i + 1}
-                  </div>
-                ))}
+                {/* 1-19번 칸 */}
+                <div className="flex-[19] flex">
+                  {Array.from({ length: 19 }, (_, i) => (
+                    <div key={i} className="flex-1 flex items-center justify-center text-lg font-black text-black border-r border-black/30">
+                      {i + 1}
+                    </div>
+                  ))}
+                </div>
+                {/* 20번 결승선 */}
+                <div className="flex-1 flex items-center justify-center text-lg font-black text-black bg-black/10 border-l-2 border-black">
+                  20
+                </div>
+                {/* 절벽 */}
                 <div className="w-28 flex-shrink-0 bg-black/40 flex items-center justify-center">
                   <span className="text-sm font-black text-white drop-shadow-lg">CLIFF</span>
                 </div>
               </div>
 
-              {/* 레이서 트랙 + 절벽 통합 영역 */}
+              {/* 레이서 트랙 + 결승선 + 절벽 통합 영역 */}
               <div className="flex-1 flex border-4 border-black border-t-0">
-                {/* 트랙 영역 */}
-                <div className="flex-1 flex flex-col">
+                {/* 트랙 영역 (1-19번 칸) */}
+                <div className="flex-[19] flex flex-col">
                   {racers.map(racer => {
                     // 현재 공개된 팀의 이 레이서에 대한 푸시 찾기
                     const revealingTeam = revealState.currentRevealingTeamId
@@ -760,12 +768,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           <span className="text-white font-black text-2xl leading-none">{racer.id}</span>
                         </div>
 
-                        {/* 20칸 그리드 */}
+                        {/* 19칸 그리드 (1-19번) */}
                         <div className="flex-1 flex relative">
-                          {Array.from({ length: 20 }, (_, i) => (
+                          {Array.from({ length: 19 }, (_, i) => (
                             <div
                               key={i}
-                              className={`flex-1 border-r border-black/30 ${i === 19 ? 'checkered-finish' : ''}`}
+                              className="flex-1 border-r border-black/30"
                             ></div>
                           ))}
 
@@ -773,8 +781,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           <div
                             className="absolute inset-y-0 transition-all duration-1000 ease-in-out flex items-center z-10"
                             style={{
-                              // 각 칸의 중앙에 정확하게 위치시키기: 칸 N의 중앙 = (N - 0.5) / 20 * 100%
-                              left: racer.position > 20 ? '105%' : racer.position <= 0 ? '0%' : `${((racer.position - 0.5) / 20) * 100}%`,
+                              // 각 칸의 중앙에 정확하게 위치시키기: 19칸 기준으로 계산
+                              left: racer.position > 20 ? '110%' : racer.position === 20 ? '105%' : racer.position <= 0 ? '0%' : `${((racer.position - 0.5) / 19) * 100}%`,
                               transform: `translateX(-50%) ${racer.isEliminated && racer.position > 20 ? 'rotate(90deg) translateY(100px)' : racer.isEliminated ? 'rotate(45deg) scale(0.6)' : ''}`,
                               opacity: racer.isEliminated && racer.position > 20 ? 0 : racer.isEliminated ? 0.3 : 1
                             }}
@@ -810,6 +818,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </div>
                     );
                   })}
+                </div>
+
+                {/* 결승선 영역 (20번 칸) - 하나의 통합 체크무늬 */}
+                <div className="flex-1 relative overflow-hidden border-l-2 border-black checkered-finish">
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-white font-black text-sm drop-shadow-[2px_2px_0px_rgba(0,0,0,1)] [text-shadow:_-1px_-1px_0_#000,_1px_-1px_0_#000,_-1px_1px_0_#000,_1px_1px_0_#000]">FINISH</span>
+                  </div>
                 </div>
 
                 {/* 절벽 영역 - 하나의 통합 이미지 */}
