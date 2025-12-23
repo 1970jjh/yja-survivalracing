@@ -751,6 +751,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
               {/* 레이서 트랙 + 결승선 + 절벽 통합 영역 */}
               <div className="flex-1 flex border-4 border-black border-t-0">
+                {/* 트랙 번호 라벨 영역 */}
+                <div className="w-20 flex-shrink-0 flex flex-col">
+                  {racers.map(racer => (
+                    <div key={racer.id} className="flex-1 bg-black flex flex-col items-center justify-center border-b border-black/50 last:border-b-0 min-h-[60px]">
+                      <span className="text-white font-black text-[8px] leading-none">TRK</span>
+                      <span className="text-white font-black text-2xl leading-none">{racer.id}</span>
+                    </div>
+                  ))}
+                </div>
+
                 {/* 트랙 영역 (1-19번 칸) */}
                 <div className="flex-[19] flex flex-col">
                   {racers.map(racer => {
@@ -762,12 +772,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                     return (
                       <div key={racer.id} className="flex-1 flex border-b border-black last:border-b-0 min-h-[60px]">
-                        {/* 트랙 번호 라벨 */}
-                        <div className="w-20 bg-black flex flex-col items-center justify-center flex-shrink-0">
-                          <span className="text-white font-black text-[8px] leading-none">TRK</span>
-                          <span className="text-white font-black text-2xl leading-none">{racer.id}</span>
-                        </div>
-
                         {/* 19칸 그리드 (1-19번) */}
                         <div className="flex-1 flex relative">
                           {Array.from({ length: 19 }, (_, i) => (
