@@ -1,0 +1,26 @@
+{
+  "rules": {
+    "games": {
+      ".read": true,
+      ".write": true,
+      "$gameId": {
+        ".read": true,
+        ".write": true,
+        "teams": {
+          "$teamIndex": {
+            ".read": true,
+            ".write": true
+          }
+        },
+        "timer": {
+          ".read": true,
+          ".write": true
+        },
+        "revealState": {
+          ".read": true,
+          ".write": true
+        }
+      }
+    }
+  }
+}

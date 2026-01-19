@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { GameState, Team, TimerState, RevealState } from './types';
+import { GameState, Team, TeamMember, TimerState, RevealState } from './types';
 import { RACER_COLORS } from './constants';
-import { saveGameState, subscribeToActiveGames, isFirebaseConfigured, deleteGameState, updateTeamPartial } from './firebase';
+import { saveGameState, subscribeToActiveGames, isFirebaseConfigured, deleteGameState, updateTeamPartial, testFirebaseConnection, isPermissionError, FirebaseConnectionStatus } from './firebase';
 import Lobby from './components/Lobby';
 import AdminSetup from './components/AdminSetup';
 import AdminDashboard from './components/AdminDashboard';
@@ -34,6 +34,8 @@ const App: React.FC = () => {
   const [notification, setNotification] = useState<{message: string, type: 'info' | 'error'} | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [useFirebase, setUseFirebase] = useState(false);
+  const [firebaseStatus, setFirebaseStatus] = useState<FirebaseConnectionStatus>('unknown');
+  const [firebaseError, setFirebaseError] = useState<string | null>(null);
 
   // Ref to always have the latest gameState (avoids stale closures)
   const gameStateRef = useRef<GameState | null>(null);
@@ -70,10 +72,31 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Firebase 설정 확인
+  // Firebase 설정 확인 및 연결 테스트
   useEffect(() => {
-    const configured = isFirebaseConfigured();
-    setUseFirebase(configured);
+    const checkFirebase = async () => {
+      const configured = isFirebaseConfigured();
+      if (configured) {
+        // Firebase 연결 및 권한 테스트
+        const result = await testFirebaseConnection();
+        setFirebaseStatus(result.status);
+
+        if (result.status === 'connected') {
+          setUseFirebase(true);
+          setFirebaseError(null);
+        } else if (result.status === 'permission_denied') {
+          setUseFirebase(false);
+          setFirebaseError(result.error || 'Firebase 권한 오류');
+          showNotification('Firebase 권한 오류! 오프라인 모드로 전환합니다.', 'error');
+        } else {
+          setUseFirebase(false);
+          setFirebaseError(result.error || '연결 오류');
+        }
+      } else {
+        setUseFirebase(false);
+      }
+    };
+    checkFirebase();
   }, []);
 
   // 활성 게임 목록 구독 (Firebase 사용 시)
@@ -160,7 +183,17 @@ const App: React.FC = () => {
         await saveGameState(updatedState);
       } catch (error) {
         console.error('Firebase 저장 실패:', error);
-        showNotification('동기화 실패. 오프라인 모드로 전환합니다.', 'error');
+        if (isPermissionError(error)) {
+          setFirebaseStatus('permission_denied');
+          setFirebaseError('Firebase 권한이 거부되었습니다.');
+          setUseFirebase(false);
+          showNotification('Firebase 권한 오류! 오프라인 모드로 전환합니다. Firebase Console에서 Database Rules를 확인하세요.', 'error');
+          // 오프라인 모드로 저장
+          localStorage.setItem('survival_racing_state', JSON.stringify(updatedState));
+          if (broadcast) SYNC_CHANNEL.postMessage(updatedState);
+        } else {
+          showNotification('동기화 실패. 다시 시도해주세요.', 'error');
+        }
       }
     } else {
       localStorage.setItem('survival_racing_state', JSON.stringify(updatedState));
@@ -191,7 +224,13 @@ const App: React.FC = () => {
         console.log('팀 부분 업데이트 성공:', teamId, update);
       } catch (error) {
         console.error('팀 부분 업데이트 실패:', error);
-        showNotification('제출 실패. 다시 시도해주세요.', 'error');
+        if (isPermissionError(error)) {
+          setFirebaseStatus('permission_denied');
+          setUseFirebase(false);
+          showNotification('Firebase 권한 오류! Firebase Console에서 Database Rules를 확인하세요.', 'error');
+        } else {
+          showNotification('제출 실패. 다시 시도해주세요.', 'error');
+        }
       }
     } else {
       // 기존 방식: 전체 상태 업데이트
@@ -464,10 +503,34 @@ const App: React.FC = () => {
       )}
 
       {/* Firebase 상태 표시 */}
-      <div className={`fixed bottom-4 right-4 z-[60] flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black ${useFirebase ? 'bg-green-500 text-white' : 'bg-orange-400 text-black'}`}>
-        <div className={`w-1.5 h-1.5 rounded-full ${useFirebase ? 'bg-white' : 'bg-black'}`}></div>
-        {useFirebase ? 'ONLINE' : 'OFFLINE'}
+      <div className={`fixed bottom-4 right-4 z-[60] flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black ${
+        useFirebase ? 'bg-green-500 text-white' :
+        firebaseStatus === 'permission_denied' ? 'bg-red-500 text-white' :
+        'bg-orange-400 text-black'
+      }`}>
+        <div className={`w-1.5 h-1.5 rounded-full ${
+          useFirebase ? 'bg-white' :
+          firebaseStatus === 'permission_denied' ? 'bg-white animate-pulse' :
+          'bg-black'
+        }`}></div>
+        {useFirebase ? 'ONLINE' :
+         firebaseStatus === 'permission_denied' ? 'PERMISSION ERROR' :
+         'OFFLINE'}
       </div>
+
+      {/* Firebase 권한 오류 배너 */}
+      {firebaseStatus === 'permission_denied' && firebaseError && (
+        <div className="fixed bottom-16 right-4 z-[60] max-w-xs bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg shadow-lg">
+          <div className="flex items-start gap-2">
+            <span className="text-lg">⚠️</span>
+            <div className="flex-1">
+              <p className="font-bold text-xs">Firebase 연결 오류</p>
+              <p className="text-[10px] mt-1">Firebase Console에서 Realtime Database Rules를 확인하세요.</p>
+              <p className="text-[10px] mt-1 text-red-500">현재 오프라인 모드로 실행 중</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {renderContent()}
 
