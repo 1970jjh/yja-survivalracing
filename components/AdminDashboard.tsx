@@ -27,6 +27,21 @@ interface AdminDashboardProps {
   useFirebase: boolean;
 }
 
+// 금액을 한글 단위로 변환 (예: 630000000 → "6억 3천만원")
+const formatKoreanMoney = (amount: number): string => {
+  const eok = Math.floor(amount / 100000000); // 억
+  const cheonman = Math.floor((amount % 100000000) / 10000000); // 천만
+
+  if (eok > 0 && cheonman > 0) {
+    return `${eok}억 ${cheonman}천만원`;
+  } else if (eok > 0) {
+    return `${eok}억원`;
+  } else if (cheonman > 0) {
+    return `${cheonman}천만원`;
+  }
+  return '0원';
+};
+
 const AdminDashboard: React.FC<AdminDashboardProps> = ({
   gameState,
   updateState,
@@ -1419,7 +1434,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
                     <div className="text-right">
                       <div className="font-black text-5xl text-green-600">
-                        {(team.totalPoints / 100000000).toFixed(1)}억원
+                        {formatKoreanMoney(team.totalPoints)}
                       </div>
                     </div>
                   </div>
