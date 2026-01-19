@@ -1,6 +1,9 @@
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, set, onValue, update, remove, DatabaseReference } from 'firebase/database';
+import { getDatabase, ref, set, onValue, update, remove, DatabaseReference, get } from 'firebase/database';
 import { GameState, Team } from './types';
+
+// Firebase 연결 상태 타입
+export type FirebaseConnectionStatus = 'connected' | 'permission_denied' | 'disconnected' | 'unknown';
 
 // undefined 값을 재귀적으로 제거 (Firebase는 undefined를 허용하지 않음)
 const removeUndefined = (obj: any): any => {
@@ -150,6 +153,54 @@ export const deleteGameState = deleteGame;
 // Firebase 연결 상태 확인
 export const isFirebaseConfigured = (): boolean => {
   return firebaseConfig.apiKey !== "YOUR_API_KEY";
+};
+
+// Firebase 연결 및 권한 테스트
+export const testFirebaseConnection = async (): Promise<{
+  status: FirebaseConnectionStatus;
+  error?: string;
+}> => {
+  try {
+    // 먼저 읽기 테스트
+    const gamesRef = ref(database, 'games');
+    await get(gamesRef);
+
+    // 쓰기 테스트 (테스트용 임시 데이터)
+    const testRef = ref(database, '_connection_test');
+    await set(testRef, { timestamp: Date.now() });
+    await remove(testRef);
+
+    return { status: 'connected' };
+  } catch (error: any) {
+    const errorMessage = error?.message || '';
+
+    if (errorMessage.includes('PERMISSION_DENIED') || errorMessage.includes('permission_denied')) {
+      return {
+        status: 'permission_denied',
+        error: 'Firebase 권한이 거부되었습니다. Firebase Console에서 Realtime Database 규칙을 확인하세요.'
+      };
+    }
+
+    if (errorMessage.includes('network') || errorMessage.includes('Network')) {
+      return {
+        status: 'disconnected',
+        error: '네트워크 연결을 확인하세요.'
+      };
+    }
+
+    return {
+      status: 'unknown',
+      error: errorMessage
+    };
+  }
+};
+
+// 권한 오류인지 확인
+export const isPermissionError = (error: any): boolean => {
+  const errorMessage = error?.message || String(error);
+  return errorMessage.includes('PERMISSION_DENIED') ||
+         errorMessage.includes('permission_denied') ||
+         errorMessage.includes('Permission denied');
 };
 
 export { database, ref, update };
