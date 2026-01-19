@@ -503,6 +503,23 @@ const App: React.FC = () => {
         </div>
       )}
 
+      {/* 참가자 로그아웃 버튼 (참가자 화면에서만 표시) */}
+      {view === 'TEAM_DASHBOARD' && (
+        <button
+          onClick={() => {
+            saveSession(null);
+            setMyTeamId(null);
+            setSelectedTeamIndex(null);
+            setCurrentGameId(null);
+            setView('HOME');
+          }}
+          className="fixed bottom-4 right-28 z-[60] flex items-center gap-1 bg-gray-800 hover:bg-gray-700 text-white px-3 py-1 rounded-full text-[10px] font-black transition-colors shadow-lg"
+        >
+          <span>🚪</span>
+          <span>로그아웃</span>
+        </button>
+      )}
+
       {/* Firebase 상태 표시 */}
       <div className={`fixed bottom-4 right-4 z-[60] flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black ${
         useFirebase ? 'bg-green-500 text-white' :
