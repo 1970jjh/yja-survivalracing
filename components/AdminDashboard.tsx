@@ -24,6 +24,7 @@ interface AdminDashboardProps {
   onExit: () => void;
   previewMode?: boolean;
   onTogglePreview: () => void;
+  useFirebase: boolean;
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -31,7 +32,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   updateState,
   onExit,
   previewMode,
-  onTogglePreview
+  onTogglePreview,
+  useFirebase
 }) => {
   const [totalPushInput, setTotalPushInput] = useState(gameState.adminTotalPush || 12);
   const [timerMinutes, setTimerMinutes] = useState(3);
@@ -134,42 +136,68 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   }, [gameState.status]);
 
-  // 타이머 카운트다운 - 부분 업데이트 사용 (팀 데이터 덮어쓰기 방지)
+  // 타이머 카운트다운 - Firebase 또는 로컬 상태 업데이트
   useEffect(() => {
     if (!gameState.timer?.isRunning || gameState.timer.remainingSeconds <= 0) return;
 
     const interval = setInterval(async () => {
       const newRemaining = Math.max(0, gameState.timer.remainingSeconds - 1);
 
-      // 시간이 다 되면 타이머만 정지 (자동 랜덤 배분 없음 - 참가자가 직접 제출해야 함)
+      // 시간이 다 되면 타이머만 정지
       if (newRemaining <= 0) {
-        try {
-          await updateTimerPartial(gameState.id, {
-            isRunning: false,
-            remainingSeconds: 0
+        if (useFirebase) {
+          try {
+            await updateTimerPartial(gameState.id, {
+              isRunning: false,
+              remainingSeconds: 0
+            });
+          } catch (error) {
+            console.error('타이머 업데이트 실패:', error);
+            // Firebase 실패 시 로컬 업데이트
+            updateState({
+              ...gameState,
+              timer: { ...gameState.timer, isRunning: false, remainingSeconds: 0 }
+            });
+          }
+        } else {
+          // 오프라인 모드: 로컬 상태 업데이트
+          updateState({
+            ...gameState,
+            timer: { ...gameState.timer, isRunning: false, remainingSeconds: 0 }
           });
-          // 시간 종료 시 알람 3초간 재생
-          playAlarmSound();
-          setTimeout(() => {
-            stopAlarmSound();
-          }, 3000);
-        } catch (error) {
-          console.error('타이머 업데이트 실패:', error);
         }
+        // 시간 종료 시 알람 3초간 재생
+        playAlarmSound();
+        setTimeout(() => {
+          stopAlarmSound();
+        }, 3000);
       } else {
-        // 타이머만 부분 업데이트 (팀 데이터 보존)
-        try {
-          await updateTimerPartial(gameState.id, {
-            remainingSeconds: newRemaining
+        // 타이머만 업데이트
+        if (useFirebase) {
+          try {
+            await updateTimerPartial(gameState.id, {
+              remainingSeconds: newRemaining
+            });
+          } catch (error) {
+            console.error('타이머 업데이트 실패:', error);
+            // Firebase 실패 시 로컬 업데이트
+            updateState({
+              ...gameState,
+              timer: { ...gameState.timer, remainingSeconds: newRemaining }
+            });
+          }
+        } else {
+          // 오프라인 모드: 로컬 상태 업데이트
+          updateState({
+            ...gameState,
+            timer: { ...gameState.timer, remainingSeconds: newRemaining }
           });
-        } catch (error) {
-          console.error('타이머 업데이트 실패:', error);
         }
       }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [gameState.timer?.isRunning, gameState.timer?.remainingSeconds, gameState.id]);
+  }, [gameState.timer?.isRunning, gameState.timer?.remainingSeconds, gameState.id, useFirebase, updateState]);
 
   // 퀵 타이머 카운트다운
   useEffect(() => {
@@ -270,7 +298,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setPendingAllocations(newAllocations);
   };
 
-  // 팀에 Push 권한 배분 및 타이머 시작 (부분 업데이트로 기존 데이터 보존)
+  // 팀에 Push 권한 배분 및 타이머 시작
   const handlePushToTeams = async () => {
     const currentTeams = gameState.teams || [];
 
@@ -285,44 +313,48 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       revealedTeamIds: []
     };
 
-    // 부분 업데이트로 팀 할당량만 업데이트 (기존 PUSH 데이터 보존)
-    try {
-      const teamUpdates = currentTeams.map((team, index) => ({
-        teamIndex: index,
-        totalPushAllowance: pendingAllocations[team.id] || 0,
-        miniGameRank: teamRanks[team.id]
-      }));
+    const newTeams = currentTeams.map(team => ({
+      ...team,
+      totalPushAllowance: pendingAllocations[team.id] || 0,
+      hasSubmittedPushes: false,
+      currentRoundPushes: [],
+      miniGameRank: teamRanks[team.id]
+    }));
 
-      // 팀 할당량, 타이머, 공개 상태, 게임 상태를 부분 업데이트
-      await updateTeamsForPushAllocation(gameState.id, teamUpdates);
-      await updateTimerPartial(gameState.id, newTimer);
-      await updateRevealStatePartial(gameState.id, newReveal);
-      await updateMultipleFieldsPartial(gameState.id, {
-        status: 'PUSH_INPUT',
-        adminTotalPush: totalPushInput
-      });
+    // Firebase 사용 시 부분 업데이트 시도
+    if (useFirebase) {
+      try {
+        const teamUpdates = currentTeams.map((team, index) => ({
+          teamIndex: index,
+          totalPushAllowance: pendingAllocations[team.id] || 0,
+          miniGameRank: teamRanks[team.id]
+        }));
 
-      console.log('PUSH 권한 부분 업데이트 성공');
-    } catch (error) {
-      console.error('부분 업데이트 실패, 전체 업데이트 시도:', error);
-      // 부분 업데이트 실패 시 전체 업데이트 폴백
-      const newTeams = currentTeams.map(team => ({
-        ...team,
-        totalPushAllowance: pendingAllocations[team.id] || 0,
-        hasSubmittedPushes: false,
-        currentRoundPushes: [],
-        miniGameRank: teamRanks[team.id]
-      }));
+        // 팀 할당량, 타이머, 공개 상태, 게임 상태를 부분 업데이트
+        await updateTeamsForPushAllocation(gameState.id, teamUpdates);
+        await updateTimerPartial(gameState.id, newTimer);
+        await updateRevealStatePartial(gameState.id, newReveal);
+        await updateMultipleFieldsPartial(gameState.id, {
+          status: 'PUSH_INPUT',
+          adminTotalPush: totalPushInput
+        });
 
-      updateState({
-        ...gameState,
-        teams: newTeams,
-        status: 'PUSH_INPUT',
-        adminTotalPush: totalPushInput,
-        timer: newTimer,
-        revealState: newReveal
-      });
+        console.log('PUSH 권한 부분 업데이트 성공');
+        return;
+      } catch (error) {
+        console.error('Firebase 부분 업데이트 실패, 전체 업데이트로 폴백:', error);
+      }
     }
+
+    // 오프라인 모드 또는 Firebase 실패 시 전체 상태 업데이트
+    updateState({
+      ...gameState,
+      teams: newTeams,
+      status: 'PUSH_INPUT',
+      adminTotalPush: totalPushInput,
+      timer: newTimer,
+      revealState: newReveal
+    });
   };
 
   // 타이머 일시정지/재개
@@ -422,13 +454,21 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           currentRevealingTeamId: teamId
         };
 
-        // 부분 업데이트 사용 (팀 데이터 덮어쓰기 방지)
-        try {
-          await updateRacersPartial(gameState.id, newRacers);
-          await updateRevealStatePartial(gameState.id, newRevealState);
-        } catch (error) {
-          console.error('부분 업데이트 실패, 전체 업데이트 시도:', error);
-          // 부분 업데이트 실패 시 전체 업데이트 폴백
+        // Firebase 사용 시 부분 업데이트, 아니면 전체 업데이트
+        if (useFirebase) {
+          try {
+            await updateRacersPartial(gameState.id, newRacers);
+            await updateRevealStatePartial(gameState.id, newRevealState);
+          } catch (error) {
+            console.error('Firebase 부분 업데이트 실패, 전체 업데이트로 폴백:', error);
+            updateState({
+              ...gameState,
+              racers: newRacers,
+              revealState: newRevealState
+            });
+          }
+        } else {
+          // 오프라인 모드: 전체 상태 업데이트
           updateState({
             ...gameState,
             racers: newRacers,

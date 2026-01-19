@@ -165,8 +165,8 @@ export const testFirebaseConnection = async (): Promise<{
     const gamesRef = ref(database, 'games');
     await get(gamesRef);
 
-    // 쓰기 테스트 (테스트용 임시 데이터)
-    const testRef = ref(database, '_connection_test');
+    // 쓰기 테스트 (games 경로 아래에서 테스트 - 규칙에 허용된 경로)
+    const testRef = ref(database, 'games/_connection_test');
     await set(testRef, { timestamp: Date.now() });
     await remove(testRef);
 
