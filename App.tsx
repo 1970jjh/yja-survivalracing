@@ -427,6 +427,7 @@ const App: React.FC = () => {
           }}
           previewMode={view === 'ADMIN_PREVIEW_USER'}
           onTogglePreview={() => setView(view === 'ADMIN_DASHBOARD' ? 'ADMIN_PREVIEW_USER' : 'ADMIN_DASHBOARD')}
+          useFirebase={useFirebase}
         />
       );
     }

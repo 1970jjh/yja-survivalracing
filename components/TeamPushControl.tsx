@@ -19,6 +19,9 @@ const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUp
   // 제출된 PUSH 데이터 (제출 완료 화면에 표시용)
   const [submittedPushes, setSubmittedPushes] = useState<PushDecision[]>(team.currentRoundPushes || []);
 
+  // 제출 중 상태 (중복 제출 방지)
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   // 입력 중인 PUSH 값들 (로컬 상태)
   const [pushes, setPushes] = useState<number[]>(() => {
     const initial = new Array(8).fill(0);
@@ -84,13 +87,22 @@ const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUp
     return null;
   };
 
-  // 제출 시 로컬 상태 먼저 업데이트 후 Firebase에 저장
-  const handleSubmit = () => {
+  // 제출 시 로컬 상태 먼저 업데이트 후 Firebase에 저장 (중복 제출 방지)
+  const handleSubmit = async () => {
+    // 이미 제출 중이거나 제출 완료된 경우 무시
+    if (isSubmitting || isSubmittedLocally) {
+      console.log('중복 제출 방지');
+      return;
+    }
+
     const error = validatePushes();
     if (error) {
       setTimeout(() => alert(error), 50);
       return;
     }
+
+    // 제출 시작
+    setIsSubmitting(true);
 
     // PUSH 결정 데이터 생성
     const decisions: PushDecision[] = pushes
@@ -102,10 +114,17 @@ const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUp
     setSubmittedPushes(decisions);
 
     // Firebase에 저장
-    onUpdate({
-      currentRoundPushes: decisions,
-      hasSubmittedPushes: true
-    });
+    try {
+      await onUpdate({
+        currentRoundPushes: decisions,
+        hasSubmittedPushes: true
+      });
+    } catch (error) {
+      console.error('제출 실패:', error);
+      // 실패해도 로컬 상태는 유지 (Firebase 구독으로 동기화됨)
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Header Component for Mobile UI
@@ -255,10 +274,16 @@ const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUp
 
         <button
           onClick={handleSubmit}
-          disabled={remaining !== 0}
-          className={`brutal-btn w-full py-6 text-2xl uppercase italic ${remaining === 0 ? 'bg-black text-white' : 'bg-slate-200 text-slate-400 opacity-50 cursor-not-allowed shadow-none transform-none'}`}
+          disabled={remaining !== 0 || isSubmitting}
+          className={`brutal-btn w-full py-6 text-2xl uppercase italic ${
+            isSubmitting
+              ? 'bg-yellow-400 text-black animate-pulse cursor-not-allowed'
+              : remaining === 0
+                ? 'bg-black text-white'
+                : 'bg-slate-200 text-slate-400 opacity-50 cursor-not-allowed shadow-none transform-none'
+          }`}
         >
-          EXECUTE ORDER
+          {isSubmitting ? 'SUBMITTING...' : 'EXECUTE ORDER'}
         </button>
       </div>
     </div>

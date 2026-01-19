@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GameState, Team, TimerState, RevealState } from '../types';
 import { RacerCarImage, CLIFF_IMAGE } from '../constants';
-import { updateTimerPartial } from '../firebase';
+import { updateTimerPartial, updateRacersPartial, updateRevealStatePartial, updateTeamsForPushAllocation, updateMultipleFieldsPartial } from '../firebase';
 import TeamPushControl from './TeamPushControl';
 import TeamSponsorship from './TeamSponsorship';
 
@@ -24,6 +24,7 @@ interface AdminDashboardProps {
   onExit: () => void;
   previewMode?: boolean;
   onTogglePreview: () => void;
+  useFirebase: boolean;
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -31,7 +32,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   updateState,
   onExit,
   previewMode,
-  onTogglePreview
+  onTogglePreview,
+  useFirebase
 }) => {
   const [totalPushInput, setTotalPushInput] = useState(gameState.adminTotalPush || 12);
   const [timerMinutes, setTimerMinutes] = useState(3);
@@ -61,6 +63,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [showSponsorshipVerify, setShowSponsorshipVerify] = useState(false);
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [editingSponsorships, setEditingSponsorships] = useState<{racerId: string, amount: number}[]>([]);
+
+  // 팀 공개 중복 방지
+  const [revealingTeamId, setRevealingTeamId] = useState<string | null>(null);
 
   // 자동차 소리 재생 함수
   const playCarSound = () => {
@@ -131,42 +136,68 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   }, [gameState.status]);
 
-  // 타이머 카운트다운 - 부분 업데이트 사용 (팀 데이터 덮어쓰기 방지)
+  // 타이머 카운트다운 - Firebase 또는 로컬 상태 업데이트
   useEffect(() => {
     if (!gameState.timer?.isRunning || gameState.timer.remainingSeconds <= 0) return;
 
     const interval = setInterval(async () => {
       const newRemaining = Math.max(0, gameState.timer.remainingSeconds - 1);
 
-      // 시간이 다 되면 타이머만 정지 (자동 랜덤 배분 없음 - 참가자가 직접 제출해야 함)
+      // 시간이 다 되면 타이머만 정지
       if (newRemaining <= 0) {
-        try {
-          await updateTimerPartial(gameState.id, {
-            isRunning: false,
-            remainingSeconds: 0
+        if (useFirebase) {
+          try {
+            await updateTimerPartial(gameState.id, {
+              isRunning: false,
+              remainingSeconds: 0
+            });
+          } catch (error) {
+            console.error('타이머 업데이트 실패:', error);
+            // Firebase 실패 시 로컬 업데이트
+            updateState({
+              ...gameState,
+              timer: { ...gameState.timer, isRunning: false, remainingSeconds: 0 }
+            });
+          }
+        } else {
+          // 오프라인 모드: 로컬 상태 업데이트
+          updateState({
+            ...gameState,
+            timer: { ...gameState.timer, isRunning: false, remainingSeconds: 0 }
           });
-          // 시간 종료 시 알람 3초간 재생
-          playAlarmSound();
-          setTimeout(() => {
-            stopAlarmSound();
-          }, 3000);
-        } catch (error) {
-          console.error('타이머 업데이트 실패:', error);
         }
+        // 시간 종료 시 알람 3초간 재생
+        playAlarmSound();
+        setTimeout(() => {
+          stopAlarmSound();
+        }, 3000);
       } else {
-        // 타이머만 부분 업데이트 (팀 데이터 보존)
-        try {
-          await updateTimerPartial(gameState.id, {
-            remainingSeconds: newRemaining
+        // 타이머만 업데이트
+        if (useFirebase) {
+          try {
+            await updateTimerPartial(gameState.id, {
+              remainingSeconds: newRemaining
+            });
+          } catch (error) {
+            console.error('타이머 업데이트 실패:', error);
+            // Firebase 실패 시 로컬 업데이트
+            updateState({
+              ...gameState,
+              timer: { ...gameState.timer, remainingSeconds: newRemaining }
+            });
+          }
+        } else {
+          // 오프라인 모드: 로컬 상태 업데이트
+          updateState({
+            ...gameState,
+            timer: { ...gameState.timer, remainingSeconds: newRemaining }
           });
-        } catch (error) {
-          console.error('타이머 업데이트 실패:', error);
         }
       }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [gameState.timer?.isRunning, gameState.timer?.remainingSeconds, gameState.id]);
+  }, [gameState.timer?.isRunning, gameState.timer?.remainingSeconds, gameState.id, useFirebase, updateState]);
 
   // 퀵 타이머 카운트다운
   useEffect(() => {
@@ -268,15 +299,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   // 팀에 Push 권한 배분 및 타이머 시작
-  const handlePushToTeams = () => {
+  const handlePushToTeams = async () => {
     const currentTeams = gameState.teams || [];
-    const newTeams = currentTeams.map(team => ({
-      ...team,
-      totalPushAllowance: pendingAllocations[team.id] || 0,
-      hasSubmittedPushes: false,
-      currentRoundPushes: [],
-      miniGameRank: teamRanks[team.id]
-    }));
 
     const newTimer: TimerState = {
       isRunning: true,
@@ -289,6 +313,40 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       revealedTeamIds: []
     };
 
+    const newTeams = currentTeams.map(team => ({
+      ...team,
+      totalPushAllowance: pendingAllocations[team.id] || 0,
+      hasSubmittedPushes: false,
+      currentRoundPushes: [],
+      miniGameRank: teamRanks[team.id]
+    }));
+
+    // Firebase 사용 시 부분 업데이트 시도
+    if (useFirebase) {
+      try {
+        const teamUpdates = currentTeams.map((team, index) => ({
+          teamIndex: index,
+          totalPushAllowance: pendingAllocations[team.id] || 0,
+          miniGameRank: teamRanks[team.id]
+        }));
+
+        // 팀 할당량, 타이머, 공개 상태, 게임 상태를 부분 업데이트
+        await updateTeamsForPushAllocation(gameState.id, teamUpdates);
+        await updateTimerPartial(gameState.id, newTimer);
+        await updateRevealStatePartial(gameState.id, newReveal);
+        await updateMultipleFieldsPartial(gameState.id, {
+          status: 'PUSH_INPUT',
+          adminTotalPush: totalPushInput
+        });
+
+        console.log('PUSH 권한 부분 업데이트 성공');
+        return;
+      } catch (error) {
+        console.error('Firebase 부분 업데이트 실패, 전체 업데이트로 폴백:', error);
+      }
+    }
+
+    // 오프라인 모드 또는 Firebase 실패 시 전체 상태 업데이트
     updateState({
       ...gameState,
       teams: newTeams,
@@ -338,56 +396,89 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }, 0);
   };
 
-  // 팀 결과 공개 (한 팀씩) - INP 최적화
-  const revealTeam = (teamId: string) => {
+  // 팀 결과 공개 (한 팀씩) - 중복 클릭 방지 및 부분 업데이트
+  const revealTeam = async (teamId: string) => {
+    // 중복 클릭 방지: 이미 공개 중이거나 공개된 팀인 경우 무시
+    const currentRevealedIds = gameState.revealState?.revealedTeamIds || [];
+    if (revealingTeamId === teamId || currentRevealedIds.includes(teamId)) {
+      console.log('팀 공개 중복 방지:', teamId);
+      return;
+    }
+
+    // 공개 시작 표시
+    setRevealingTeamId(teamId);
+
     // 자동차 시동 소리 즉시 재생
     playCarSound();
 
     // 무거운 작업은 비동기로 처리
-    requestAnimationFrame(() => {
-      const currentTeams = gameState.teams || [];
-      const team = currentTeams.find(t => t.id === teamId);
-      if (!team) return;
-
-      const currentRacers = gameState.racers || [];
-      const currentPushes = team.currentRoundPushes || [];
-      let hasCliffFall = false;
-      // 레이서 위치 업데이트
-      const newRacers = currentRacers.map(racer => {
-        const push = currentPushes.find(p => p.racerId === racer.id);
-        if (push) {
-          let newPos = racer.position + push.count;
-          let isEliminated = racer.isEliminated;
-          if (newPos > 20) {
-            newPos = 21;
-            isEliminated = true;
-            hasCliffFall = true; // 절벽 추락 발생
-          } else if (newPos < 0) {
-            newPos = 0;
-          }
-          return { ...racer, position: newPos, isEliminated };
+    requestAnimationFrame(async () => {
+      try {
+        const currentTeams = gameState.teams || [];
+        const team = currentTeams.find(t => t.id === teamId);
+        if (!team) {
+          setRevealingTeamId(null);
+          return;
         }
-        return racer;
-      });
 
-      // 절벽 추락 시 효과음 재생 (1초 지연 - 자동차 이동 애니메이션 후)
-      if (hasCliffFall) {
-        setTimeout(() => playCliffFallSound(), 1000);
+        const currentRacers = gameState.racers || [];
+        const currentPushes = team.currentRoundPushes || [];
+        let hasCliffFall = false;
+        // 레이서 위치 업데이트
+        const newRacers = currentRacers.map(racer => {
+          const push = currentPushes.find(p => p.racerId === racer.id);
+          if (push) {
+            let newPos = racer.position + push.count;
+            let isEliminated = racer.isEliminated;
+            if (newPos > 20) {
+              newPos = 21;
+              isEliminated = true;
+              hasCliffFall = true; // 절벽 추락 발생
+            } else if (newPos < 0) {
+              newPos = 0;
+            }
+            return { ...racer, position: newPos, isEliminated };
+          }
+          return racer;
+        });
+
+        // 절벽 추락 시 효과음 재생 (1초 지연 - 자동차 이동 애니메이션 후)
+        if (hasCliffFall) {
+          setTimeout(() => playCliffFallSound(), 1000);
+        }
+
+        // 공개된 팀 목록에 추가 (중복 체크)
+        const newRevealedIds = [...currentRevealedIds, teamId];
+        const newRevealState: RevealState = {
+          revealedTeamIds: newRevealedIds,
+          currentRevealingTeamId: teamId
+        };
+
+        // Firebase 사용 시 부분 업데이트, 아니면 전체 업데이트
+        if (useFirebase) {
+          try {
+            await updateRacersPartial(gameState.id, newRacers);
+            await updateRevealStatePartial(gameState.id, newRevealState);
+          } catch (error) {
+            console.error('Firebase 부분 업데이트 실패, 전체 업데이트로 폴백:', error);
+            updateState({
+              ...gameState,
+              racers: newRacers,
+              revealState: newRevealState
+            });
+          }
+        } else {
+          // 오프라인 모드: 전체 상태 업데이트
+          updateState({
+            ...gameState,
+            racers: newRacers,
+            revealState: newRevealState
+          });
+        }
+      } finally {
+        // 공개 완료
+        setTimeout(() => setRevealingTeamId(null), 500);
       }
-
-      // 공개된 팀 목록에 추가
-      const currentRevealedIds = gameState.revealState?.revealedTeamIds || [];
-      const newRevealedIds = [...currentRevealedIds, teamId];
-      const newRevealState: RevealState = {
-        revealedTeamIds: newRevealedIds,
-        currentRevealingTeamId: teamId
-      };
-
-      updateState({
-        ...gameState,
-        racers: newRacers,
-        revealState: newRevealState
-      });
     });
   };
 
@@ -986,8 +1077,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         </div>
                         <div className="flex gap-1 flex-shrink-0">
                           {gameState.status === 'REVEALING' && !isRevealed && (
-                            <button onClick={() => revealTeam(team.id)} className="text-[10px] font-black px-2 py-1 bg-pink-500 text-white">
-                              공개
+                            <button
+                              onClick={() => revealTeam(team.id)}
+                              disabled={revealingTeamId === team.id}
+                              className={`text-[10px] font-black px-2 py-1 text-white ${
+                                revealingTeamId === team.id
+                                  ? 'bg-gray-400 cursor-not-allowed'
+                                  : 'bg-pink-500 hover:bg-pink-600'
+                              }`}
+                            >
+                              {revealingTeamId === team.id ? '공개중...' : '공개'}
                             </button>
                           )}
                           {isRevealed && (
