@@ -203,4 +203,68 @@ export const isPermissionError = (error: any): boolean => {
          errorMessage.includes('Permission denied');
 };
 
+// 게임 상태만 부분 업데이트 (팀 데이터 덮어쓰기 방지)
+export const updateGameStatusPartial = async (
+  gameId: string,
+  updates: {
+    status?: string;
+    currentRound?: number;
+    adminTotalPush?: number;
+  }
+): Promise<void> => {
+  const gameRef = ref(database, `games/${gameId}`);
+  const cleanedUpdates = removeUndefined(updates);
+  await update(gameRef, cleanedUpdates);
+};
+
+// 레이서 데이터만 부분 업데이트
+export const updateRacersPartial = async (
+  gameId: string,
+  racers: any[]
+): Promise<void> => {
+  const racersRef = ref(database, `games/${gameId}/racers`);
+  await set(racersRef, racers);
+};
+
+// 공개 상태만 부분 업데이트
+export const updateRevealStatePartial = async (
+  gameId: string,
+  revealState: any
+): Promise<void> => {
+  const revealRef = ref(database, `games/${gameId}/revealState`);
+  const cleanedState = removeUndefined(revealState);
+  await set(revealRef, cleanedState);
+};
+
+// 팀 데이터를 부분적으로 업데이트 (PUSH 권한 배분용 - 기존 PUSH 데이터 유지)
+export const updateTeamsForPushAllocation = async (
+  gameId: string,
+  teamUpdates: { teamIndex: number; totalPushAllowance: number; miniGameRank?: number }[]
+): Promise<void> => {
+  const updates: Record<string, any> = {};
+
+  for (const teamUpdate of teamUpdates) {
+    updates[`games/${gameId}/teams/${teamUpdate.teamIndex}/totalPushAllowance`] = teamUpdate.totalPushAllowance;
+    updates[`games/${gameId}/teams/${teamUpdate.teamIndex}/hasSubmittedPushes`] = false;
+    updates[`games/${gameId}/teams/${teamUpdate.teamIndex}/currentRoundPushes`] = [];
+    if (teamUpdate.miniGameRank !== undefined) {
+      updates[`games/${gameId}/teams/${teamUpdate.teamIndex}/miniGameRank`] = teamUpdate.miniGameRank;
+    }
+  }
+
+  await update(ref(database), updates);
+};
+
+// 여러 필드를 동시에 부분 업데이트 (원자적 업데이트)
+export const updateMultipleFieldsPartial = async (
+  gameId: string,
+  updates: Record<string, any>
+): Promise<void> => {
+  const prefixedUpdates: Record<string, any> = {};
+  for (const [key, value] of Object.entries(updates)) {
+    prefixedUpdates[`games/${gameId}/${key}`] = value;
+  }
+  await update(ref(database), prefixedUpdates);
+};
+
 export { database, ref, update };
