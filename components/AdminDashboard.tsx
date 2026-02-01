@@ -1150,8 +1150,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         <div className="flex flex-col min-w-0">
                           <span className="font-black truncate">
                             {team.index}조 {team.name}
-                            {pendingAllocations[team.id] !== undefined && (
-                              <span className="text-green-700 ml-1">(P:{pendingAllocations[team.id]})</span>
+                            {(team.totalPushAllowance > 0 || pendingAllocations[team.id] !== undefined) && (
+                              <span className="text-green-700 ml-1">
+                                P:{team.totalPushAllowance > 0 ? team.totalPushAllowance : pendingAllocations[team.id]}
+                              </span>
                             )}
                           </span>
                           {team.hasSubmittedPushes && (
