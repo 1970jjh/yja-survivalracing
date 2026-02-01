@@ -1066,7 +1066,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                 <input
                                   type="number"
                                   min="1"
-                                  className="w-6 border border-green-700 text-center text-[10px] font-black text-green-700 bg-white/50"
+                                  className="w-12 border border-green-700 text-center text-[10px] font-black text-green-700 bg-white/50"
                                   value={pendingAllocations[team.id]}
                                   onChange={(e) => setPendingAllocations({ ...pendingAllocations, [team.id]: Math.max(parseInt(e.target.value) || 1, 1) })}
                                 />
