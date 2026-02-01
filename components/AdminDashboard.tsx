@@ -44,6 +44,29 @@ const formatKoreanMoney = (amount: number): string => {
   return '0원';
 };
 
+// 공동 순위 계산: 정렬된 레이서 배열에서 각 인덱스의 순위를 반환
+// 같은 position이면 같은 순위 (예: 1,2,3,3,5,5,7,8)
+const getRacerRanks = (sortedRacers: { position: number; isEliminated: boolean }[]): number[] => {
+  const ranks: number[] = [];
+  let i = 0;
+  while (i < sortedRacers.length) {
+    if (sortedRacers[i].isEliminated) {
+      ranks.push(-1); // eliminated
+      i++;
+      continue;
+    }
+    let j = i;
+    while (j < sortedRacers.length && !sortedRacers[j].isEliminated && sortedRacers[j].position === sortedRacers[i].position) {
+      j++;
+    }
+    for (let k = i; k < j; k++) {
+      ranks.push(i + 1); // 1-based rank
+    }
+    i = j;
+  }
+  return ranks;
+};
+
 const AdminDashboard: React.FC<AdminDashboardProps> = ({
   gameState,
   updateState,
@@ -649,13 +672,33 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         .filter(r => !r.isEliminated)
         .sort((a, b) => b.position - a.position);
 
+      // 공동 순위 처리: 같은 position의 레이서들은 같은 순위, 배수는 해당 순위들의 평균
+      const racerMultipliers: Record<number, number> = {};
+      let i = 0;
+      while (i < activeRacers.length) {
+        let j = i;
+        // 같은 position인 레이서들 찾기
+        while (j < activeRacers.length && activeRacers[j].position === activeRacers[i].position) {
+          j++;
+        }
+        // i부터 j-1까지 같은 순위 → 배수의 평균 계산
+        let sumMultiplier = 0;
+        for (let k = i; k < j; k++) {
+          sumMultiplier += 8 - k; // 원래 순위별 배수
+        }
+        const avgMultiplier = sumMultiplier / (j - i);
+        for (let k = i; k < j; k++) {
+          racerMultipliers[activeRacers[k].id] = avgMultiplier;
+        }
+        i = j;
+      }
+
       const teamIncomes = currentTeams.map(team => {
         let income = 0;
         const sponsorships = team.sponsorships || [];
         sponsorships.forEach(s => {
-          const racerIdx = activeRacers.findIndex(r => r.id === s.racerId);
-          if (racerIdx !== -1) {
-            const multiplier = 8 - racerIdx;
+          const multiplier = racerMultipliers[s.racerId];
+          if (multiplier !== undefined) {
             income += (s.amount * 10000000) * multiplier; // 천만원 단위
           }
           // 탈락한 레이서는 수익 0
@@ -1105,6 +1148,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       🏁 게임 종료
                     </button>
                   )}
+                  {gameState.status === 'FINISHED' && (
+                    <button onClick={() => { setShowTeamResults(true); }} className="brutal-btn py-2 bg-yellow-500 text-black text-sm font-black">
+                      🏆 결과 보기
+                    </button>
+                  )}
                 </div>
               </section>
 
@@ -1492,22 +1540,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             {/* 레이서 순위 */}
             <div className="mb-8">
               <div className="grid grid-cols-4 gap-4">
-                {[...racers]
-                  .sort((a, b) => {
+                {(() => {
+                  const sorted = [...racers].sort((a, b) => {
                     if (a.isEliminated && !b.isEliminated) return 1;
                     if (!a.isEliminated && b.isEliminated) return -1;
                     return b.position - a.position;
-                  })
-                  .map((racer, idx) => (
-                    <div key={racer.id} className={`p-4 border-4 border-black text-center ${racer.isEliminated ? 'bg-gray-300 opacity-50' : idx === 0 ? 'bg-yellow-400' : 'bg-white'}`}>
-                      <div className="text-3xl font-black">{racer.isEliminated ? '💀' : `${idx + 1}등`}</div>
+                  });
+                  const ranks = getRacerRanks(sorted);
+                  return sorted.map((racer, idx) => (
+                    <div key={racer.id} className={`p-4 border-4 border-black text-center ${racer.isEliminated ? 'bg-gray-300 opacity-50' : ranks[idx] === 1 ? 'bg-yellow-400' : 'bg-white'}`}>
+                      <div className="text-3xl font-black">{racer.isEliminated ? '💀' : `${ranks[idx]}등`}</div>
                       <div className="flex justify-center my-2">
                         <RacerCarImage racerId={racer.id} size={56} />
                       </div>
                       <div className="font-black">{racer.id}번 레이서</div>
                       <div className="text-sm text-black/60">위치: {racer.position}</div>
                     </div>
-                  ))}
+                  ));
+                })()}
               </div>
             </div>
 
@@ -1519,7 +1569,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       )}
 
       {/* 최종 결과 화면 - 팀 수익 (2단계) */}
-      {gameState.status === 'RESULTS' && showTeamResults && (
+      {(gameState.status === 'RESULTS' || gameState.status === 'FINISHED') && showTeamResults && (
         <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 overflow-auto p-8">
           <div className="brutal-card bg-white p-8 max-w-5xl w-full">
             {/* 다운로드 대상 영역 */}
@@ -1532,22 +1582,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <div className="mb-8">
                   <h2 className="text-2xl font-black mb-4 border-b-4 border-black pb-2">레이서 최종 순위</h2>
                   <div className="grid grid-cols-4 gap-3">
-                    {[...racers]
-                      .sort((a, b) => {
+                    {(() => {
+                      const sorted = [...racers].sort((a, b) => {
                         if (a.isEliminated && !b.isEliminated) return 1;
                         if (!a.isEliminated && b.isEliminated) return -1;
                         return b.position - a.position;
-                      })
-                      .map((racer, idx) => (
-                        <div key={racer.id} className={`p-3 border-4 border-black text-center ${racer.isEliminated ? 'bg-gray-300 opacity-50' : idx === 0 ? 'bg-yellow-400' : 'bg-white'}`}>
-                          <div className="text-2xl font-black">{racer.isEliminated ? '💀' : `${idx + 1}등`}</div>
+                      });
+                      const ranks = getRacerRanks(sorted);
+                      return sorted.map((racer, idx) => (
+                        <div key={racer.id} className={`p-3 border-4 border-black text-center ${racer.isEliminated ? 'bg-gray-300 opacity-50' : ranks[idx] === 1 ? 'bg-yellow-400' : 'bg-white'}`}>
+                          <div className="text-2xl font-black">{racer.isEliminated ? '💀' : `${ranks[idx]}등`}</div>
                           <div className="flex justify-center my-1">
                             <RacerCarImage racerId={String(racer.id)} size={48} />
                           </div>
                           <div className="font-black text-sm">{racer.id}번 레이서</div>
                           <div className="text-xs text-black/60">위치: {racer.position}</div>
                         </div>
-                      ))}
+                      ));
+                    })()}
                   </div>
                 </div>
               )}
