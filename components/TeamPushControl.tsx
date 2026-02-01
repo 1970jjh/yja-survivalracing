@@ -13,6 +13,28 @@ const formatKoreanMoney = (amount: number): string => {
   return '0원';
 };
 
+// 공동 순위 계산
+const getRacerRanks = (sortedRacers: { position: number; isEliminated: boolean }[]): number[] => {
+  const ranks: number[] = [];
+  let i = 0;
+  while (i < sortedRacers.length) {
+    if (sortedRacers[i].isEliminated) {
+      ranks.push(-1);
+      i++;
+      continue;
+    }
+    let j = i;
+    while (j < sortedRacers.length && !sortedRacers[j].isEliminated && sortedRacers[j].position === sortedRacers[i].position) {
+      j++;
+    }
+    for (let k = i; k < j; k++) {
+      ranks.push(i + 1);
+    }
+    i = j;
+  }
+  return ranks;
+};
+
 interface TeamPushControlProps {
   team: Team;
   gameState: GameState;
@@ -204,21 +226,23 @@ const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUp
           <div className="brutal-card p-4 mb-6">
             <h3 className="text-lg font-black mb-3 border-b-2 border-black pb-1">레이서 순위</h3>
             <div className="grid grid-cols-4 gap-2">
-              {[...racers]
-                .sort((a, b) => {
+              {(() => {
+                const sorted = [...racers].sort((a, b) => {
                   if (a.isEliminated && !b.isEliminated) return 1;
                   if (!a.isEliminated && b.isEliminated) return -1;
                   return b.position - a.position;
-                })
-                .map((racer, idx) => (
-                  <div key={racer.id} className={`p-2 border-2 border-black text-center ${racer.isEliminated ? 'bg-gray-300 opacity-50' : idx === 0 ? 'bg-yellow-400' : 'bg-white'}`}>
-                    <div className="text-sm font-black">{racer.isEliminated ? '💀' : `${idx + 1}등`}</div>
+                });
+                const ranks = getRacerRanks(sorted);
+                return sorted.map((racer, idx) => (
+                  <div key={racer.id} className={`p-2 border-2 border-black text-center ${racer.isEliminated ? 'bg-gray-300 opacity-50' : ranks[idx] === 1 ? 'bg-yellow-400' : 'bg-white'}`}>
+                    <div className="text-sm font-black">{racer.isEliminated ? '💀' : `${ranks[idx]}등`}</div>
                     <div className="flex justify-center my-1">
                       <RacerCarImage racerId={String(racer.id)} size={32} />
                     </div>
                     <div className="text-xs font-black">{racer.id}번</div>
                   </div>
-                ))}
+                ));
+              })()}
             </div>
           </div>
 
@@ -226,17 +250,17 @@ const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUp
           <div className="space-y-3">
             {sortedTeams.map((t, idx) => (
               <div key={t.id} className={`p-4 brutal-card ${t.id === team.id ? 'border-4 border-yellow-500 bg-yellow-50' : 'bg-white'} ${idx === 0 ? 'bg-yellow-400' : ''}`}>
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <span className="font-black text-3xl">{idx + 1}등</span>
-                    <div>
+                <div className="flex justify-between items-center gap-2">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="font-black text-3xl whitespace-nowrap">{idx + 1}등</span>
+                    <div className="min-w-0">
                       <span className="font-black text-xl block">{t.index}조 {t.name}</span>
                       <div className="text-xs text-black/60">
                         스폰: {(t.sponsorships || []).map(s => `${s.racerId}번(${s.amount}천만)`).join(', ') || '없음'}
                       </div>
                     </div>
                   </div>
-                  <div className="font-black text-2xl text-green-600">
+                  <div className="font-black text-2xl text-green-600 whitespace-nowrap flex-shrink-0">
                     {formatKoreanMoney(t.totalPoints)}
                   </div>
                 </div>
