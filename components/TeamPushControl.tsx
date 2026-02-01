@@ -3,6 +3,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Team, GameState, PushDecision } from '../types';
 import { RacerCarImage } from '../constants';
 
+// 금액을 한글 단위로 변환
+const formatKoreanMoney = (amount: number): string => {
+  const eok = Math.floor(amount / 100000000);
+  const cheonman = Math.floor((amount % 100000000) / 10000000);
+  if (eok > 0 && cheonman > 0) return `${eok}억 ${cheonman}천만원`;
+  if (eok > 0) return `${eok}억원`;
+  if (cheonman > 0) return `${cheonman}천만원`;
+  return '0원';
+};
+
 interface TeamPushControlProps {
   team: Team;
   gameState: GameState;
@@ -77,10 +87,10 @@ const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUp
   const validatePushes = (): string | null => {
     if (totalUsed !== team.totalPushAllowance) return "모든 PUSH 칸수를 정확히 사용해야 합니다.";
     const activeRacers = pushes.filter(p => p !== 0).length;
-    // PUSH가 4개 이하이면 최소 2명, 그 외에는 최소 3명의 레이서에게 배분
-    const minRacers = team.totalPushAllowance <= 4 ? 2 : 3;
+    // PUSH가 1개이면 최소 1명, 4개 이하이면 최소 2명, 그 외에는 최소 3명의 레이서에게 배분
+    const minRacers = team.totalPushAllowance <= 1 ? 1 : team.totalPushAllowance <= 4 ? 2 : 3;
     if (activeRacers < minRacers) return `최소 ${minRacers}명의 레이서에게 배분해야 합니다.`;
-    const maxAllowedPerRacer = Math.floor(team.totalPushAllowance * 0.7);
+    const maxAllowedPerRacer = Math.max(Math.floor(team.totalPushAllowance * 0.7), 1);
     if (pushes.some(p => Math.abs(p) > maxAllowedPerRacer)) {
       return `한 레이서에게 과도한 배정은 금지됩니다 (최대 ${maxAllowedPerRacer}칸).`;
     }
@@ -174,6 +184,72 @@ const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUp
       </div>
     </div>
   );
+
+  // 최종 결과 화면 (참가자용)
+  if (gameState.status === 'RESULTS' || gameState.status === 'FINISHED') {
+    const allTeams = gameState.teams || [];
+    const sortedTeams = [...allTeams].sort((a, b) => b.totalPoints - a.totalPoints);
+    const racers = gameState.racers || [];
+
+    return (
+      <div className="flex flex-col items-center min-h-full bg-slate-50">
+        <MobileHeader />
+        <div className="w-full max-w-md px-4 pb-10">
+          <div className="p-8 brutal-card bg-yellow-400 text-center mb-6">
+            <span className="text-6xl block mb-4">🏆</span>
+            <h1 className="text-3xl font-black uppercase leading-none">최종 순위 결과</h1>
+          </div>
+
+          {/* 레이서 최종 순위 */}
+          <div className="brutal-card p-4 mb-6">
+            <h3 className="text-lg font-black mb-3 border-b-2 border-black pb-1">레이서 순위</h3>
+            <div className="grid grid-cols-4 gap-2">
+              {[...racers]
+                .sort((a, b) => {
+                  if (a.isEliminated && !b.isEliminated) return 1;
+                  if (!a.isEliminated && b.isEliminated) return -1;
+                  return b.position - a.position;
+                })
+                .map((racer, idx) => (
+                  <div key={racer.id} className={`p-2 border-2 border-black text-center ${racer.isEliminated ? 'bg-gray-300 opacity-50' : idx === 0 ? 'bg-yellow-400' : 'bg-white'}`}>
+                    <div className="text-sm font-black">{racer.isEliminated ? '💀' : `${idx + 1}등`}</div>
+                    <div className="flex justify-center my-1">
+                      <RacerCarImage racerId={String(racer.id)} size={32} />
+                    </div>
+                    <div className="text-xs font-black">{racer.id}번</div>
+                  </div>
+                ))}
+            </div>
+          </div>
+
+          {/* 팀 순위 */}
+          <div className="space-y-3">
+            {sortedTeams.map((t, idx) => (
+              <div key={t.id} className={`p-4 brutal-card ${t.id === team.id ? 'border-4 border-yellow-500 bg-yellow-50' : 'bg-white'} ${idx === 0 ? 'bg-yellow-400' : ''}`}>
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <span className="font-black text-3xl">{idx + 1}등</span>
+                    <div>
+                      <span className="font-black text-xl block">{t.index}조 {t.name}</span>
+                      <div className="text-xs text-black/60">
+                        스폰: {(t.sponsorships || []).map(s => `${s.racerId}번(${s.amount}천만)`).join(', ') || '없음'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="font-black text-2xl text-green-600">
+                    {formatKoreanMoney(t.totalPoints)}
+                  </div>
+                </div>
+                {t.id === team.id && (
+                  <div className="mt-2 text-xs font-black text-yellow-700 text-center">⭐ 우리 팀</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // 제출 완료 화면 (로컬 제출 상태 또는 Firebase 제출 상태)
   if (isSubmittedLocally || team.hasSubmittedPushes) {
