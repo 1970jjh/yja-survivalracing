@@ -4,6 +4,8 @@ import { RacerCarImage, CLIFF_IMAGE } from '../constants';
 import { updateTimerPartial, updateRacersPartial, updateRevealStatePartial, updateTeamsForPushAllocation, updateMultipleFieldsPartial } from '../firebase';
 import TeamPushControl from './TeamPushControl';
 import TeamSponsorship from './TeamSponsorship';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 // F1 레이싱 카 사운드 URL
 const CAR_ENGINE_SOUND = 'https://cdn.jsdelivr.net/gh/1970jjh/yja-survivalracing@main/car-engine-roaring-376881.mp3';
@@ -81,6 +83,58 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // 팀 공개 중복 방지
   const [revealingTeamId, setRevealingTeamId] = useState<string | null>(null);
+
+  // 최종 결과 다운로드용 ref
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownloadPNG = async () => {
+    if (!resultsRef.current) return;
+    setIsDownloading(true);
+    try {
+      const canvas = await html2canvas(resultsRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        useCORS: true,
+      });
+      const link = document.createElement('a');
+      link.download = `최종순위결과_${gameState.courseName || 'game'}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (err) {
+      console.error('PNG 다운로드 실패:', err);
+      alert('PNG 다운로드에 실패했습니다.');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!resultsRef.current) return;
+    setIsDownloading(true);
+    try {
+      const canvas = await html2canvas(resultsRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        useCORS: true,
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const pdf = new jsPDF({
+        orientation: imgWidth > imgHeight ? 'landscape' : 'portrait',
+        unit: 'px',
+        format: [imgWidth, imgHeight],
+      });
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      pdf.save(`최종순위결과_${gameState.courseName || 'game'}.pdf`);
+    } catch (err) {
+      console.error('PDF 다운로드 실패:', err);
+      alert('PDF 다운로드에 실패했습니다.');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   // 자동차 소리 재생 함수
   const playCarSound = () => {
@@ -1094,7 +1148,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     return (
                       <div key={team.id} className={`p-1.5 border-2 border-black flex justify-between items-center text-xs ${isRevealed ? 'bg-green-200' : team.hasSubmittedPushes ? 'bg-yellow-100' : 'bg-white'}`}>
                         <div className="flex flex-col min-w-0">
-                          <span className="font-black truncate">{team.index}조 {team.name}</span>
+                          <span className="font-black truncate">
+                            {team.index}조 {team.name}
+                            {pendingAllocations[team.id] !== undefined && (
+                              <span className="text-green-700 ml-1">(P:{pendingAllocations[team.id]})</span>
+                            )}
+                          </span>
                           {team.hasSubmittedPushes && (
                             <span className="text-[9px] text-black/60 truncate">{pushSummary || '없음'}</span>
                           )}
@@ -1423,34 +1482,84 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {gameState.status === 'RESULTS' && showTeamResults && (
         <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 overflow-auto p-8">
           <div className="brutal-card bg-white p-8 max-w-5xl w-full">
-            <h1 className="text-5xl font-black text-center mb-10">🏆 최종 순위 결과 🏆</h1>
+            {/* 다운로드 대상 영역 */}
+            <div ref={resultsRef} className="bg-white p-8">
+              <h1 className="text-5xl font-black text-center mb-4">🏆 최종 순위 결과 🏆</h1>
+              <p className="text-center text-xl font-black text-black/50 mb-8">{gameState.courseName}</p>
 
-            {/* 팀 수익 - 크게 표시 */}
-            <div className="space-y-6">
-              {[...teams]
-                .sort((a, b) => b.totalPoints - a.totalPoints)
-                .map((team, idx) => (
-                  <div key={team.id} className={`p-8 border-4 border-black flex justify-between items-center ${idx === 0 ? 'bg-yellow-400 scale-105' : 'bg-white'}`}>
-                    <div className="flex items-center gap-6">
-                      <span className="font-black text-5xl">{idx + 1}등</span>
-                      <div>
-                        <span className="font-black text-3xl block">{team.index}조 {team.name}</span>
-                        {/* 스폰 기록 - 검정색, 2배 크기 */}
-                        <div className="text-xl font-black text-black mt-2">
-                          스폰: {(team.sponsorships || []).map(s => `${s.racerId}번(${s.amount}천만)`).join(', ') || '없음'}
+              {/* 레이서 최종 순위 (경기장 대시보드) */}
+              <div className="mb-8">
+                <h2 className="text-2xl font-black mb-4 border-b-4 border-black pb-2">레이서 최종 순위</h2>
+                <div className="grid grid-cols-4 gap-3">
+                  {[...racers]
+                    .sort((a, b) => {
+                      if (a.isEliminated && !b.isEliminated) return 1;
+                      if (!a.isEliminated && b.isEliminated) return -1;
+                      return b.position - a.position;
+                    })
+                    .map((racer, idx) => (
+                      <div key={racer.id} className={`p-3 border-4 border-black text-center ${racer.isEliminated ? 'bg-gray-300 opacity-50' : idx === 0 ? 'bg-yellow-400' : 'bg-white'}`}>
+                        <div className="text-2xl font-black">{racer.isEliminated ? '💀' : `${idx + 1}등`}</div>
+                        <div className="flex justify-center my-1">
+                          <RacerCarImage racerId={String(racer.id)} size={48} />
+                        </div>
+                        <div className="font-black text-sm">{racer.id}번 레이서</div>
+                        <div className="text-xs text-black/60">위치: {racer.position}</div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+
+              {/* 팀 수익 순위 */}
+              <h2 className="text-2xl font-black mb-4 border-b-4 border-black pb-2">팀 최종 순위</h2>
+              <div className="space-y-5">
+                {[...teams]
+                  .sort((a, b) => b.totalPoints - a.totalPoints)
+                  .map((team, idx) => (
+                    <div key={team.id} className={`p-6 border-4 border-black ${idx === 0 ? 'bg-yellow-400 scale-[1.02]' : 'bg-white'}`}>
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-6">
+                          <span className="font-black text-5xl">{idx + 1}등</span>
+                          <div>
+                            <span className="font-black text-5xl block">{team.index}조 {team.name}</span>
+                            <div className="text-lg font-bold text-black/70 mt-1">
+                              {(team.members || []).map(m => `${m.name}(${m.role})`).join(', ') || '팀원 정보 없음'}
+                            </div>
+                            <div className="text-xl font-black text-black mt-2">
+                              스폰: {(team.sponsorships || []).map(s => `${s.racerId}번(${s.amount}천만)`).join(', ') || '없음'}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-black text-5xl text-green-600">
+                            {formatKoreanMoney(team.totalPoints)}
+                          </div>
                         </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="font-black text-5xl text-green-600">
-                        {formatKoreanMoney(team.totalPoints)}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+              </div>
             </div>
 
-            <div className="flex gap-4 mt-10">
+            {/* 다운로드 버튼 */}
+            <div className="flex gap-4 mt-6">
+              <button
+                onClick={handleDownloadPNG}
+                disabled={isDownloading}
+                className="brutal-btn flex-1 py-3 bg-blue-500 text-white text-lg font-black"
+              >
+                {isDownloading ? '다운로드 중...' : '📷 PNG 다운로드'}
+              </button>
+              <button
+                onClick={handleDownloadPDF}
+                disabled={isDownloading}
+                className="brutal-btn flex-1 py-3 bg-red-500 text-white text-lg font-black"
+              >
+                {isDownloading ? '다운로드 중...' : '📄 PDF 다운로드'}
+              </button>
+            </div>
+
+            <div className="flex gap-4 mt-4">
               <button onClick={() => setShowTeamResults(false)} className="brutal-btn flex-1 py-4 bg-gray-400 text-white text-xl">
                 ← 레이서 순위 보기
               </button>
