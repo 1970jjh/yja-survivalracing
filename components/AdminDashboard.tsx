@@ -87,16 +87,58 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // 최종 결과 다운로드용 ref
   const resultsRef = useRef<HTMLDivElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
+  const raceTrackRef = useRef<HTMLDivElement>(null);
 
-  const handleDownloadPNG = async () => {
-    if (!resultsRef.current) return;
-    setIsDownloading(true);
+  const captureResults = async (): Promise<HTMLCanvasElement | null> => {
+    if (!resultsRef.current) return null;
+    // Show download-only sections
+    setIsCapturing(true);
+    // Wait for DOM to update
+    await new Promise(r => setTimeout(r, 100));
     try {
-      const canvas = await html2canvas(resultsRef.current, {
+      // Capture race track first if available
+      let raceTrackCanvas: HTMLCanvasElement | null = null;
+      if (raceTrackRef.current) {
+        raceTrackCanvas = await html2canvas(raceTrackRef.current, {
+          backgroundColor: '#ffffff',
+          scale: 2,
+          useCORS: true,
+        });
+      }
+      // Capture results section
+      const resultsCanvas = await html2canvas(resultsRef.current, {
         backgroundColor: '#ffffff',
         scale: 2,
         useCORS: true,
       });
+      // If we have a race track, combine the canvases
+      if (raceTrackCanvas) {
+        const combinedCanvas = document.createElement('canvas');
+        combinedCanvas.width = Math.max(raceTrackCanvas.width, resultsCanvas.width);
+        combinedCanvas.height = raceTrackCanvas.height + resultsCanvas.height + 40;
+        const ctx = combinedCanvas.getContext('2d')!;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, combinedCanvas.width, combinedCanvas.height);
+        // Center race track
+        const trackX = (combinedCanvas.width - raceTrackCanvas.width) / 2;
+        ctx.drawImage(raceTrackCanvas, trackX, 0);
+        // Center results
+        const resultsX = (combinedCanvas.width - resultsCanvas.width) / 2;
+        ctx.drawImage(resultsCanvas, resultsX, raceTrackCanvas.height + 40);
+        return combinedCanvas;
+      }
+      return resultsCanvas;
+    } finally {
+      setIsCapturing(false);
+    }
+  };
+
+  const handleDownloadPNG = async () => {
+    setIsDownloading(true);
+    try {
+      const canvas = await captureResults();
+      if (!canvas) return;
       const link = document.createElement('a');
       link.download = `최종순위결과_${gameState.courseName || 'game'}.png`;
       link.href = canvas.toDataURL('image/png');
@@ -110,14 +152,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleDownloadPDF = async () => {
-    if (!resultsRef.current) return;
     setIsDownloading(true);
     try {
-      const canvas = await html2canvas(resultsRef.current, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-        useCORS: true,
-      });
+      const canvas = await captureResults();
+      if (!canvas) return;
       const imgData = canvas.toDataURL('image/png');
       const imgWidth = canvas.width;
       const imgHeight = canvas.height;
@@ -843,7 +881,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             )}
 
             {/* 레이스 트랙 */}
-            <div className="flex-1 brutal-card p-4 flex flex-col relative overflow-hidden bg-white">
+            <div ref={raceTrackRef} className="flex-1 brutal-card p-4 flex flex-col relative overflow-hidden bg-white">
               {/* 현재 공개 중인 팀 결과 배너 - 브루탈리즘 3D 스타일 */}
               {revealState.currentRevealingTeamId && (
                 <div className="bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-400 text-center py-4 mb-2 border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden">
@@ -1080,11 +1118,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <div className="flex gap-2 mb-2">
                   <div className="flex-1">
                     <label className="text-[10px] font-black block mb-0.5">1등 PUSH</label>
-                    <input type="number" className="brutal-input text-sm w-full font-black p-1" value={totalPushInput} onChange={(e) => setTotalPushInput(parseInt(e.target.value) || 0)} />
+                    <input type="number" className="brutal-input text-sm w-full font-black p-1" value={totalPushInput === 0 ? '' : totalPushInput} onChange={(e) => setTotalPushInput(e.target.value === '' ? 0 : parseInt(e.target.value))} />
                   </div>
                   <div className="flex-1">
                     <label className="text-[10px] font-black block mb-0.5">시간(분)</label>
-                    <input type="number" className="brutal-input text-sm w-full font-black p-1" value={timerMinutes} onChange={(e) => setTimerMinutes(parseInt(e.target.value) || 1)} />
+                    <input type="number" className="brutal-input text-sm w-full font-black p-1" value={timerMinutes === 0 ? '' : timerMinutes} onChange={(e) => setTimerMinutes(e.target.value === '' ? 0 : parseInt(e.target.value))} />
                   </div>
                 </div>
                 {/* 미니게임 순위 - 병렬 구조 */}
@@ -1112,7 +1150,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               placeholder="#"
                               className="w-8 border border-black text-center text-xs font-black bg-white"
                               value={teamRanks[team.id] || ''}
-                              onChange={(e) => setTeamRanks({ ...teamRanks, [team.id]: parseInt(e.target.value) || 0 })}
+                              onChange={(e) => setTeamRanks({ ...teamRanks, [team.id]: e.target.value === '' ? 0 : parseInt(e.target.value) })}
                             />
                             {pendingAllocations[team.id] !== undefined && (
                               <div className="flex items-center">
@@ -1121,8 +1159,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                   type="number"
                                   min="1"
                                   className="w-12 border border-green-700 text-center text-[10px] font-black text-green-700 bg-white/50"
-                                  value={pendingAllocations[team.id]}
-                                  onChange={(e) => setPendingAllocations({ ...pendingAllocations, [team.id]: Math.max(parseInt(e.target.value) || 1, 1) })}
+                                  value={pendingAllocations[team.id] === 0 ? '' : pendingAllocations[team.id]}
+                                  onChange={(e) => setPendingAllocations({ ...pendingAllocations, [team.id]: e.target.value === '' ? 0 : Math.max(parseInt(e.target.value), 0) })}
                                 />
                               </div>
                             )}
@@ -1489,28 +1527,30 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <h1 className="text-5xl font-black text-center mb-4">🏆 최종 순위 결과 🏆</h1>
               <p className="text-center text-xl font-black text-black/50 mb-8">{gameState.courseName}</p>
 
-              {/* 레이서 최종 순위 (경기장 대시보드) */}
-              <div className="mb-8">
-                <h2 className="text-2xl font-black mb-4 border-b-4 border-black pb-2">레이서 최종 순위</h2>
-                <div className="grid grid-cols-4 gap-3">
-                  {[...racers]
-                    .sort((a, b) => {
-                      if (a.isEliminated && !b.isEliminated) return 1;
-                      if (!a.isEliminated && b.isEliminated) return -1;
-                      return b.position - a.position;
-                    })
-                    .map((racer, idx) => (
-                      <div key={racer.id} className={`p-3 border-4 border-black text-center ${racer.isEliminated ? 'bg-gray-300 opacity-50' : idx === 0 ? 'bg-yellow-400' : 'bg-white'}`}>
-                        <div className="text-2xl font-black">{racer.isEliminated ? '💀' : `${idx + 1}등`}</div>
-                        <div className="flex justify-center my-1">
-                          <RacerCarImage racerId={String(racer.id)} size={48} />
+              {/* 레이서 최종 순위 - 다운로드 캡처 시에만 표시 */}
+              {isCapturing && (
+                <div className="mb-8">
+                  <h2 className="text-2xl font-black mb-4 border-b-4 border-black pb-2">레이서 최종 순위</h2>
+                  <div className="grid grid-cols-4 gap-3">
+                    {[...racers]
+                      .sort((a, b) => {
+                        if (a.isEliminated && !b.isEliminated) return 1;
+                        if (!a.isEliminated && b.isEliminated) return -1;
+                        return b.position - a.position;
+                      })
+                      .map((racer, idx) => (
+                        <div key={racer.id} className={`p-3 border-4 border-black text-center ${racer.isEliminated ? 'bg-gray-300 opacity-50' : idx === 0 ? 'bg-yellow-400' : 'bg-white'}`}>
+                          <div className="text-2xl font-black">{racer.isEliminated ? '💀' : `${idx + 1}등`}</div>
+                          <div className="flex justify-center my-1">
+                            <RacerCarImage racerId={String(racer.id)} size={48} />
+                          </div>
+                          <div className="font-black text-sm">{racer.id}번 레이서</div>
+                          <div className="text-xs text-black/60">위치: {racer.position}</div>
                         </div>
-                        <div className="font-black text-sm">{racer.id}번 레이서</div>
-                        <div className="text-xs text-black/60">위치: {racer.position}</div>
-                      </div>
-                    ))}
+                      ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* 팀 수익 순위 */}
               <h2 className="text-2xl font-black mb-4 border-b-4 border-black pb-2">팀 최종 순위</h2>
@@ -1519,10 +1559,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   .sort((a, b) => b.totalPoints - a.totalPoints)
                   .map((team, idx) => (
                     <div key={team.id} className={`p-6 border-4 border-black ${idx === 0 ? 'bg-yellow-400 scale-[1.02]' : 'bg-white'}`}>
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-6">
-                          <span className="font-black text-5xl">{idx + 1}등</span>
-                          <div>
+                      <div className="flex justify-between items-center gap-4">
+                        <div className="flex items-center gap-6 min-w-0">
+                          <span className="font-black text-5xl whitespace-nowrap">{idx + 1}등</span>
+                          <div className="min-w-0">
                             <span className="font-black text-5xl block">{team.index}조 {team.name}</span>
                             <div className="text-lg font-bold text-black/70 mt-1">
                               {(team.members || []).map(m => `${m.name}(${m.role})`).join(', ') || '팀원 정보 없음'}
@@ -1532,8 +1572,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             </div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="font-black text-5xl text-green-600">
+                        <div className="flex-shrink-0">
+                          <div className="font-black text-5xl text-green-600 whitespace-nowrap">
                             {formatKoreanMoney(team.totalPoints)}
                           </div>
                         </div>
