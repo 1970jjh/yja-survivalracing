@@ -1607,13 +1607,21 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               {/* 팀 수익 순위 */}
               <h2 className="text-2xl font-black mb-4 border-b-4 border-black pb-2">팀 최종 순위</h2>
               <div className="space-y-5">
-                {[...teams]
-                  .sort((a, b) => b.totalPoints - a.totalPoints)
-                  .map((team, idx) => (
-                    <div key={team.id} className={`p-6 border-4 border-black ${idx === 0 ? 'bg-yellow-400 scale-[1.02]' : 'bg-white'}`}>
+                {(() => {
+                  const sorted = [...teams].sort((a, b) => b.totalPoints - a.totalPoints);
+                  const teamRankNumbers: number[] = [];
+                  for (let i = 0; i < sorted.length; i++) {
+                    if (i === 0 || sorted[i].totalPoints !== sorted[i - 1].totalPoints) {
+                      teamRankNumbers.push(i + 1);
+                    } else {
+                      teamRankNumbers.push(teamRankNumbers[i - 1]);
+                    }
+                  }
+                  return sorted.map((team, idx) => (
+                    <div key={team.id} className={`p-6 border-4 border-black ${teamRankNumbers[idx] === 1 ? 'bg-yellow-400 scale-[1.02]' : 'bg-white'}`}>
                       <div className="flex justify-between items-center gap-4">
                         <div className="flex items-center gap-6 min-w-0">
-                          <span className="font-black text-5xl whitespace-nowrap">{idx + 1}등</span>
+                          <span className="font-black text-5xl whitespace-nowrap">{teamRankNumbers[idx]}등</span>
                           <div className="min-w-0">
                             <span className="font-black text-5xl block">{team.index}조 {team.name}</span>
                             <div className="text-lg font-bold text-black/70 mt-1">
@@ -1631,7 +1639,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         </div>
                       </div>
                     </div>
-                  ))}
+                  ));
+                })()}
               </div>
             </div>
 
