@@ -248,11 +248,20 @@ const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUp
 
           {/* 팀 순위 */}
           <div className="space-y-3">
-            {sortedTeams.map((t, idx) => (
-              <div key={t.id} className={`p-4 brutal-card ${t.id === team.id ? 'border-4 border-yellow-500 bg-yellow-50' : 'bg-white'} ${idx === 0 ? 'bg-yellow-400' : ''}`}>
+            {(() => {
+              const teamRankNumbers: number[] = [];
+              for (let i = 0; i < sortedTeams.length; i++) {
+                if (i === 0 || sortedTeams[i].totalPoints !== sortedTeams[i - 1].totalPoints) {
+                  teamRankNumbers.push(i + 1);
+                } else {
+                  teamRankNumbers.push(teamRankNumbers[i - 1]);
+                }
+              }
+              return sortedTeams.map((t, idx) => (
+              <div key={t.id} className={`p-4 brutal-card ${t.id === team.id ? 'border-4 border-yellow-500 bg-yellow-50' : 'bg-white'} ${teamRankNumbers[idx] === 1 ? 'bg-yellow-400' : ''}`}>
                 <div className="flex justify-between items-center gap-2">
                   <div className="flex items-center gap-3 min-w-0">
-                    <span className="font-black text-3xl whitespace-nowrap">{idx + 1}등</span>
+                    <span className="font-black text-3xl whitespace-nowrap">{teamRankNumbers[idx]}등</span>
                     <div className="min-w-0">
                       <span className="font-black text-xl block">{t.index}조 {t.name}</span>
                       <div className="text-xs text-black/60">
@@ -268,7 +277,8 @@ const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUp
                   <div className="mt-2 text-xs font-black text-yellow-700 text-center">⭐ 우리 팀</div>
                 )}
               </div>
-            ))}
+            ));
+            })()}
           </div>
         </div>
       </div>
