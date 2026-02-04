@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GameState, Team, TimerState, RevealState } from '../types';
 import { RacerCarImage, CLIFF_IMAGE } from '../constants';
-import { updateTimerPartial, updateRacersPartial, updateRevealStatePartial, updateTeamsForPushAllocation, updateMultipleFieldsPartial } from '../firebase';
+import { updateTimerPartial, updateRacersPartial, updateRevealStatePartial, updateTeamsForPushAllocation, updateMultipleFieldsPartial, atomicPushToTeams } from '../firebase';
 import TeamPushControl from './TeamPushControl';
 import TeamSponsorship from './TeamSponsorship';
 import html2canvas from 'html2canvas';
@@ -451,7 +451,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       miniGameRank: teamRanks[team.id]
     }));
 
-    // Firebase 사용 시 부분 업데이트 시도
+    // Firebase 사용 시 원자적 업데이트 (모든 필드를 하나의 호출로 처리)
     if (useFirebase) {
       try {
         const teamUpdates = currentTeams.map((team, index) => ({
@@ -460,19 +460,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           miniGameRank: teamRanks[team.id]
         }));
 
-        // 팀 할당량, 타이머, 공개 상태, 게임 상태를 부분 업데이트
-        await updateTeamsForPushAllocation(gameState.id, teamUpdates);
-        await updateTimerPartial(gameState.id, newTimer);
-        await updateRevealStatePartial(gameState.id, newReveal);
-        await updateMultipleFieldsPartial(gameState.id, {
-          status: 'PUSH_INPUT',
-          adminTotalPush: totalPushInput
-        });
+        await atomicPushToTeams(
+          gameState.id,
+          teamUpdates,
+          newTimer,
+          newReveal,
+          { status: 'PUSH_INPUT', adminTotalPush: totalPushInput }
+        );
 
-        console.log('PUSH 권한 부분 업데이트 성공');
+        console.log('PUSH 권한 원자적 업데이트 성공');
         return;
       } catch (error) {
-        console.error('Firebase 부분 업데이트 실패, 전체 업데이트로 폴백:', error);
+        console.error('Firebase 원자적 업데이트 실패, 전체 업데이트로 폴백:', error);
       }
     }
 

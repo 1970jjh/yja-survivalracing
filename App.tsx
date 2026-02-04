@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GameState, Team, TeamMember, TimerState, RevealState } from './types';
 import { RACER_COLORS } from './constants';
-import { saveGameState, subscribeToActiveGames, isFirebaseConfigured, deleteGameState, updateTeamPartial, testFirebaseConnection, isPermissionError, FirebaseConnectionStatus } from './firebase';
+import { saveGameState, subscribeToActiveGames, isFirebaseConfigured, deleteGameState, updateTeamPartial, testFirebaseConnection, isPermissionError, FirebaseConnectionStatus, subscribeToConnectionState } from './firebase';
 import Lobby from './components/Lobby';
 import AdminSetup from './components/AdminSetup';
 import AdminDashboard from './components/AdminDashboard';
@@ -36,6 +36,7 @@ const App: React.FC = () => {
   const [useFirebase, setUseFirebase] = useState(false);
   const [firebaseStatus, setFirebaseStatus] = useState<FirebaseConnectionStatus>('unknown');
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
+  const [firebaseConnected, setFirebaseConnected] = useState(true);
 
   // Ref to always have the latest gameState (avoids stale closures)
   const gameStateRef = useRef<GameState | null>(null);
@@ -99,6 +100,21 @@ const App: React.FC = () => {
     checkFirebase();
   }, []);
 
+  // Firebase 실시간 연결 상태 모니터링
+  useEffect(() => {
+    if (useFirebase) {
+      const unsubscribe = subscribeToConnectionState((connected) => {
+        setFirebaseConnected(connected);
+        if (!connected) {
+          console.warn('Firebase 연결 끊김 감지');
+        } else {
+          console.log('Firebase 연결 복구됨');
+        }
+      });
+      return unsubscribe;
+    }
+  }, [useFirebase]);
+
   // 활성 게임 목록 구독 (Firebase 사용 시)
   useEffect(() => {
     if (useFirebase) {
@@ -111,6 +127,10 @@ const App: React.FC = () => {
             setGameState(currentGame);
           }
         }
+      }, (error) => {
+        console.error('Firebase 구독 에러:', error);
+        setFirebaseConnected(false);
+        showNotification('서버 연결이 끊어졌습니다. 자동 재연결을 시도합니다.', 'error');
       });
       return unsubscribe;
     } else {
@@ -522,16 +542,19 @@ const App: React.FC = () => {
 
       {/* Firebase 상태 표시 */}
       <div className={`fixed bottom-4 right-4 z-[60] flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black ${
-        useFirebase ? 'bg-green-500 text-white' :
+        useFirebase && firebaseConnected ? 'bg-green-500 text-white' :
+        useFirebase && !firebaseConnected ? 'bg-red-500 text-white animate-pulse' :
         firebaseStatus === 'permission_denied' ? 'bg-red-500 text-white' :
         'bg-orange-400 text-black'
       }`}>
         <div className={`w-1.5 h-1.5 rounded-full ${
-          useFirebase ? 'bg-white' :
+          useFirebase && firebaseConnected ? 'bg-white' :
+          useFirebase && !firebaseConnected ? 'bg-white' :
           firebaseStatus === 'permission_denied' ? 'bg-white animate-pulse' :
           'bg-black'
         }`}></div>
-        {useFirebase ? 'ONLINE' :
+        {useFirebase && firebaseConnected ? 'ONLINE' :
+         useFirebase && !firebaseConnected ? '재연결 중...' :
          firebaseStatus === 'permission_denied' ? 'PERMISSION ERROR' :
          'OFFLINE'}
       </div>

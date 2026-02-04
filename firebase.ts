@@ -84,7 +84,8 @@ export const subscribeToGame = (
 
 // 모든 활성 게임 목록 가져오기
 export const subscribeToActiveGames = (
-  callback: (games: GameState[]) => void
+  callback: (games: GameState[]) => void,
+  onError?: (error: Error) => void
 ): (() => void) => {
   const gamesRef = ref(database, 'games');
   const unsubscribe = onValue(gamesRef, (snapshot) => {
@@ -104,6 +105,9 @@ export const subscribeToActiveGames = (
       console.error('게임 목록 구독 오류:', error);
       callback([]);
     }
+  }, (error) => {
+    console.error('Firebase 구독 오류:', error);
+    if (onError) onError(error);
   });
   return unsubscribe;
 };
@@ -265,6 +269,54 @@ export const updateMultipleFieldsPartial = async (
     prefixedUpdates[`games/${gameId}/${key}`] = value;
   }
   await update(ref(database), prefixedUpdates);
+};
+
+// PUSH 전송 시 모든 업데이트를 하나의 원자적 호출로 처리
+export const atomicPushToTeams = async (
+  gameId: string,
+  teamUpdates: { teamIndex: number; totalPushAllowance: number; miniGameRank?: number }[],
+  timerUpdates: Record<string, any>,
+  revealState: Record<string, any>,
+  extraFields: Record<string, any>
+): Promise<void> => {
+  const updates: Record<string, any> = {};
+
+  // 팀 할당량 업데이트
+  for (const teamUpdate of teamUpdates) {
+    const prefix = `games/${gameId}/teams/${teamUpdate.teamIndex}`;
+    updates[`${prefix}/totalPushAllowance`] = teamUpdate.totalPushAllowance;
+    updates[`${prefix}/hasSubmittedPushes`] = false;
+    updates[`${prefix}/currentRoundPushes`] = [];
+    if (teamUpdate.miniGameRank !== undefined) {
+      updates[`${prefix}/miniGameRank`] = teamUpdate.miniGameRank;
+    }
+  }
+
+  // 타이머 업데이트
+  for (const [key, value] of Object.entries(timerUpdates)) {
+    updates[`games/${gameId}/timer/${key}`] = value;
+  }
+
+  // 공개 상태 업데이트
+  updates[`games/${gameId}/revealState`] = removeUndefined(revealState);
+
+  // 상태, adminTotalPush 등 추가 필드
+  for (const [key, value] of Object.entries(extraFields)) {
+    updates[`games/${gameId}/${key}`] = value;
+  }
+
+  await update(ref(database), updates);
+};
+
+// Firebase 연결 상태 실시간 모니터링
+export const subscribeToConnectionState = (
+  callback: (connected: boolean) => void
+): (() => void) => {
+  const connectedRef = ref(database, '.info/connected');
+  const unsubscribe = onValue(connectedRef, (snapshot) => {
+    callback(snapshot.val() === true);
+  });
+  return unsubscribe;
 };
 
 export { database, ref, update };
