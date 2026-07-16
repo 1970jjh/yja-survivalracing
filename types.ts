@@ -35,6 +35,7 @@ export interface Team {
   members: TeamMember[];   // 팀원 목록
   sponsorships: Sponsorship[]; // 스폰서십 정보
   currentRoundPushes: PushDecision[]; // 현재 라운드 PUSH
+  previousRoundPushes?: PushDecision[]; // 직전 라운드 PUSH 결정 (참가자 현황보기용)
   hasSubmittedPushes: boolean;  // PUSH 제출 여부
   totalPushAllowance: number;   // 이번 라운드 PUSH 허용량
   totalPoints: number;          // 최종 수익금
@@ -86,6 +87,7 @@ export interface GameState {
   racers: Racer[];          // 8명의 레이서
   teams: Team[];            // 팀 목록
   adminTotalPush: number;   // 관리자가 설정한 총 PUSH 수
+  showStatusView?: boolean; // 참가자 화면에 이전 라운드 기록/현재 레이서 위치 공개 여부 (관리자 제어)
   revealState: RevealState; // 결과 공개 상태
   createdAt: number;        // 생성 시간
   updatedAt: number;        // 마지막 업데이트 시간

@@ -68,9 +68,15 @@ const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUp
 
   const [showSponsoredRacers, setShowSponsoredRacers] = useState(false);
 
+  // 현황보기(이전 라운드 기록 + 현재 위치) 펼침 상태
+  const [showHistory, setShowHistory] = useState(false);
+
   // 안전한 기본값
   const racers = gameState.racers || [];
   const sponsorships = team.sponsorships || [];
+
+  // 관리자가 현황보기를 활성화한 경우에만 참가자가 이전 기록/현재 위치를 볼 수 있음
+  const statusVisible = !!gameState.showStatusView;
 
   // 새 라운드 시작 시 상태 리셋
   useEffect(() => {
@@ -207,6 +213,51 @@ const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUp
     </div>
   );
 
+  // 현황보기 리포트 (관리자가 활성화했을 때만): 이전 라운드 전체 팀 결정 + 현재 레이서 위치
+  const allTeams = gameState.teams || [];
+  const previousRoundReport = statusVisible ? (
+    <div className="w-full max-w-md px-4 mb-4">
+      <button
+        onClick={() => setShowHistory(v => !v)}
+        className="w-full py-2 bg-black text-white rounded-lg text-sm font-black uppercase border-2 border-black active:bg-gray-800"
+      >
+        {showHistory ? '🔽 현황 닫기' : '📊 이전 라운드 현황 보기'}
+      </button>
+      {showHistory && (
+        <div className="mt-2 brutal-card bg-white p-3">
+          {/* 현재 레이서 위치 */}
+          <h3 className="text-xs font-black uppercase mb-2 border-b-2 border-black pb-1">현재 레이서 위치</h3>
+          <div className="grid grid-cols-4 gap-1 mb-4">
+            {racers.map(r => (
+              <div key={r.id} className={`p-1 border border-black text-center ${r.isEliminated ? 'bg-gray-300 opacity-60' : 'bg-white'}`}>
+                <div className="flex justify-center"><RacerCarImage racerId={String(r.id)} size={24} /></div>
+                <div className="text-[10px] font-black">{r.id}번</div>
+                <div className="text-[10px] font-black text-blue-700">{r.isEliminated ? '💀 탈락' : `${r.position}칸`}</div>
+              </div>
+            ))}
+          </div>
+          {/* 이전 라운드 팀별 PUSH 결정 */}
+          <h3 className="text-xs font-black uppercase mb-2 border-b-2 border-black pb-1">이전 라운드 PUSH 기록</h3>
+          <div className="space-y-1">
+            {[...allTeams].sort((a, b) => (a.index || 0) - (b.index || 0)).map(t => {
+              const prev = (t.previousRoundPushes || []).filter(p => p.count !== 0);
+              return (
+                <div key={t.id} className="flex items-start gap-2 text-[11px] border-b border-black/10 pb-1 last:border-b-0">
+                  <span className="font-black whitespace-nowrap">{t.index}조</span>
+                  <span className="font-bold text-black/70">
+                    {prev.length === 0
+                      ? '기록 없음'
+                      : prev.map(p => `${p.racerId}번 ${p.count > 0 ? '+' : ''}${p.count}칸`).join(', ')}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  ) : null;
+
   // 최종 결과 화면 (참가자용)
   if (gameState.status === 'RESULTS' || gameState.status === 'FINISHED') {
     const allTeams = gameState.teams || [];
@@ -293,6 +344,7 @@ const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUp
     return (
       <div className="flex flex-col items-center min-h-full bg-slate-50">
         <MobileHeader />
+        {previousRoundReport}
         <div className="w-full max-w-md px-4 pb-10">
           <div className="p-12 brutal-card bg-lime-400 text-center mb-8">
             <span className="text-8xl block mb-8">🚀</span>
@@ -327,6 +379,8 @@ const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUp
     <div className="flex flex-col items-center min-h-full bg-slate-50">
       <MobileHeader />
 
+      {previousRoundReport}
+
       <div className="w-full max-w-md px-4 pb-12">
         <div className="brutal-card bg-black text-white p-6 mb-8 flex justify-between items-center shadow-[6px_6px_0px_0px_rgba(234,179,8,1)] border-yellow-400">
           <div>
@@ -355,7 +409,7 @@ const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUp
                     <RacerCarImage racerId={racer.id} size={44} />
                     <span className="absolute -bottom-1 -right-1 bg-black text-white text-[10px] font-black px-1 rounded">{racer.id}</span>
                   </div>
-                  <span className="text-[8px] font-black uppercase">POS: {racer.position}</span>
+                  {statusVisible && <span className="text-[8px] font-black uppercase">POS: {racer.position}</span>}
                 </div>
 
                 <div className="flex-1 flex items-center justify-center gap-2">

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createRoot, Root } from 'react-dom/client';
 import { GameState, Team, TimerState, RevealState } from '../types';
 import { RacerCarImage, CLIFF_IMAGE } from '../constants';
 import { updateTimerPartial, updateRacersPartial, updateRevealStatePartial, updateTeamsForPushAllocation, updateMultipleFieldsPartial } from '../firebase';
@@ -67,6 +68,100 @@ const getRacerRanks = (sortedRacers: { position: number; isEliminated: boolean }
   return ranks;
 };
 
+// 별도 브라우저 창(듀얼 모니터용)에 자식 요소를 렌더링하는 컴포넌트.
+// 단순 포털이 아닌 별도의 React 루트를 사용하여, 팝업 창 안의 버튼/입력이
+// 정상적으로 동작(이벤트 처리)하도록 한다.
+const PopupWindow: React.FC<{ title: string; onClose: () => void; children: React.ReactNode }> = ({
+  title,
+  onClose,
+  children
+}) => {
+  const rootRef = useRef<Root | null>(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const externalWindow = window.open('', '', 'width=1280,height=860,left=120,top=80');
+    if (!externalWindow) {
+      alert('팝업 창이 차단되었습니다. 브라우저 주소창의 팝업 차단을 해제한 뒤 다시 시도해주세요.');
+      onClose();
+      return;
+    }
+    externalWindow.document.title = title;
+
+    // 메인 문서의 스타일/폰트 복제 (커스텀 CSS + 구글 폰트)
+    document.head.querySelectorAll('style, link[rel="stylesheet"]').forEach((node) => {
+      externalWindow.document.head.appendChild(node.cloneNode(true));
+    });
+    // Tailwind CDN 주입
+    const tw = externalWindow.document.createElement('script');
+    tw.src = 'https://cdn.tailwindcss.com';
+    externalWindow.document.head.appendChild(tw);
+
+    externalWindow.document.body.style.margin = '0';
+    externalWindow.document.body.style.background = '#f1f5f9';
+
+    const mount = externalWindow.document.createElement('div');
+    externalWindow.document.body.appendChild(mount);
+    rootRef.current = createRoot(mount);
+    setReady(true);
+
+    const handleBeforeUnload = () => externalWindow.close();
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    const poll = window.setInterval(() => {
+      if (externalWindow.closed) {
+        window.clearInterval(poll);
+        onClose();
+      }
+    }, 500);
+
+    return () => {
+      window.clearInterval(poll);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      const r = rootRef.current;
+      rootRef.current = null;
+      // 렌더 중 동기 unmount 경고를 피하기 위해 다음 틱에 정리
+      setTimeout(() => {
+        try { r?.unmount(); } catch { /* noop */ }
+      }, 0);
+      externalWindow.close();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 부모 상태가 바뀔 때마다 팝업 내용 동기화
+  useEffect(() => {
+    if (ready && rootRef.current) {
+      rootRef.current.render(children as React.ReactElement);
+    }
+  });
+
+  return null;
+};
+
+// 자식을 인라인으로 두거나(popped=false) 별도 창으로 분리(popped=true)하는 래퍼
+const Relocatable: React.FC<{
+  popped: boolean;
+  onClose: () => void;
+  title: string;
+  inlineClass: string;
+  poppedClass: string;
+  placeholder?: React.ReactNode;
+  children: React.ReactNode;
+}> = ({ popped, onClose, title, inlineClass, poppedClass, placeholder, children }) => {
+  if (!popped) {
+    return <div className={inlineClass}>{children}</div>;
+  }
+  return (
+    <>
+      {placeholder}
+      <PopupWindow title={title} onClose={onClose}>
+        <div className={poppedClass}>{children}</div>
+      </PopupWindow>
+    </>
+  );
+};
+
 const AdminDashboard: React.FC<AdminDashboardProps> = ({
   gameState,
   updateState,
@@ -82,6 +177,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [previewTeamIndex, setPreviewTeamIndex] = useState(0);
   const [showMiniGamePopup, setShowMiniGamePopup] = useState(true);
+  // 컨트롤 패널을 별도 창(듀얼 모니터)으로 분리 표시
+  const [showControlPopup, setShowControlPopup] = useState(false);
   const carSoundRef = useRef<HTMLAudioElement | null>(null);
   const alarmSoundRef = useRef<HTMLAudioElement | null>(null);
   const gameStartSoundRef = useRef<HTMLAudioElement | null>(null);
@@ -447,6 +544,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       ...team,
       totalPushAllowance: pendingAllocations[team.id] || 0,
       hasSubmittedPushes: false,
+      // 직전 라운드 결정을 보존 후 현재 라운드 PUSH 초기화 (참가자 현황보기용)
+      previousRoundPushes: team.currentRoundPushes || [],
       currentRoundPushes: [],
       miniGameRank: teamRanks[team.id]
     }));
@@ -457,7 +556,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         const teamUpdates = currentTeams.map((team, index) => ({
           teamIndex: index,
           totalPushAllowance: pendingAllocations[team.id] || 0,
-          miniGameRank: teamRanks[team.id]
+          miniGameRank: teamRanks[team.id],
+          previousRoundPushes: team.currentRoundPushes || []
         }));
 
         // 팀 할당량, 타이머, 공개 상태, 게임 상태를 부분 업데이트
@@ -779,6 +879,45 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }, 50);
   };
 
+  // 현황보기 토글: 참가자 화면에 이전 라운드 기록/현재 레이서 위치 공개 여부 제어.
+  // PUSH 입력 중 참가자 제출 데이터를 덮어쓰지 않도록 부분 업데이트 사용.
+  const toggleStatusView = () => {
+    const newVal = !gameState.showStatusView;
+    if (useFirebase) {
+      updateMultipleFieldsPartial(gameState.id, { showStatusView: newVal }).catch((error) => {
+        console.error('현황보기 토글 실패, 전체 업데이트로 폴백:', error);
+        updateState({ ...gameState, showStatusView: newVal });
+      });
+    } else {
+      updateState({ ...gameState, showStatusView: newVal });
+    }
+  };
+
+  // 레이싱 중계 화면(1~8번 트랙)을 전체화면으로 크게 보기.
+  // Fullscreen API를 사용하므로 브라우저 배율(확대/축소)과 무관하게 항상 전체가 보인다.
+  const handleFullscreenRace = () => {
+    const el = raceTrackRef.current;
+    if (!el) return;
+    const doc = document as Document & {
+      webkitFullscreenElement?: Element;
+      webkitExitFullscreen?: () => void;
+    };
+    const anyEl = el as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> };
+    if (doc.fullscreenElement || doc.webkitFullscreenElement) {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if (doc.webkitExitFullscreen) {
+        doc.webkitExitFullscreen();
+      }
+      return;
+    }
+    if (anyEl.requestFullscreen) {
+      anyEl.requestFullscreen().catch(() => {});
+    } else if (anyEl.webkitRequestFullscreen) {
+      anyEl.webkitRequestFullscreen();
+    }
+  };
+
   // 타이머 포맷팅
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -870,6 +1009,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </button>
           <button onClick={onTogglePreview} className={`brutal-btn px-4 py-2 text-sm ${previewMode ? 'bg-cyan-400' : 'bg-white'}`}>
             {previewMode ? '🏁 대시보드' : '👁 참가자 화면'}
+          </button>
+          <button onClick={toggleStatusView} className={`brutal-btn px-3 py-2 text-sm ${gameState.showStatusView ? 'bg-green-500 text-white' : 'bg-white'}`} title="참가자 휴대폰 화면에 이전 라운드 PUSH 기록/현재 레이서 위치 공개 여부">
+            📊 현황 {gameState.showStatusView ? 'ON' : 'OFF'}
+          </button>
+          <button onClick={handleFullscreenRace} className="brutal-btn px-3 py-2 text-sm bg-white" title="레이싱 중계화면을 전체화면으로 크게 보기">
+            ⛶ 중계화면
+          </button>
+          <button onClick={() => setShowControlPopup(v => !v)} className={`brutal-btn px-3 py-2 text-sm ${showControlPopup ? 'bg-indigo-500 text-white' : 'bg-white'}`} title="게임진행·라운드설정·PUSH공개 패널을 별도 창으로 분리 (듀얼 모니터)">
+            🖥 {showControlPopup ? '컨트롤창 닫기' : '컨트롤창'}
           </button>
           <button onClick={resetGame} className="brutal-btn bg-gray-500 text-white px-4 py-2 text-sm">리셋</button>
           <button onClick={onExit} className="brutal-btn bg-red-500 text-white px-4 py-2 text-sm">나가기</button>
@@ -1076,8 +1224,26 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             </div>
 
-            {/* 컨트롤 패널 - 높이 축소 */}
-            <div className="grid grid-cols-3 gap-3 h-[200px]">
+            {/* 컨트롤 패널 (인라인 또는 별도 창) */}
+            <Relocatable
+              popped={showControlPopup}
+              onClose={() => setShowControlPopup(false)}
+              title="AI SURVIVAL RACING — 컨트롤 패널"
+              inlineClass="grid grid-cols-3 gap-3 h-[200px]"
+              poppedClass="grid grid-cols-3 gap-4 p-4 min-h-screen bg-slate-100 auto-rows-fr"
+              placeholder={
+                <div className="brutal-card bg-white p-3 flex items-center justify-center gap-3 text-center">
+                  <span className="text-2xl">🖥</span>
+                  <div className="flex flex-col">
+                    <p className="font-black text-sm">컨트롤 패널이 별도 창에서 열려 있습니다</p>
+                    <p className="text-[11px] text-black/60 font-bold">별도 창(듀얼 모니터)에서 조작하세요. 창을 닫으면 여기로 돌아옵니다.</p>
+                  </div>
+                  <button onClick={() => setShowControlPopup(false)} className="brutal-btn px-3 py-2 bg-gray-700 text-white text-xs font-black">
+                    여기로 되돌리기
+                  </button>
+                </div>
+              }
+            >
               {/* 1. 게임 진행 */}
               <section className="brutal-card bg-blue-300 p-3 flex flex-col">
                 <div className="flex items-center gap-2 mb-2">
@@ -1174,7 +1340,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </div>
                 </div>
                 {/* 미니게임 순위 - 병렬 구조 */}
-                <div className="flex-1 bg-lime-400 rounded border-2 border-black p-2 overflow-hidden">
+                <div className="flex-1 bg-lime-400 rounded border-2 border-black p-2 overflow-y-auto">
                   <div className="flex items-center gap-1 mb-1">
                     <span className="w-5 h-5 bg-black text-white rounded-full flex items-center justify-center font-black text-[10px]">3</span>
                     <span className="font-black text-[10px] uppercase">미니게임 순위</span>
@@ -1185,18 +1351,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   {teams.length === 0 ? (
                     <div className="text-center text-[10px] text-black/50 font-bold">등록된 팀 없음</div>
                   ) : (
-                    <div className="grid grid-cols-4 gap-1">
+                    <div className="grid grid-cols-4 gap-1.5">
                       {teams
                         .sort((a, b) => (a.index || 0) - (b.index || 0))
                         .map((team) => (
-                          <div key={team.id} className="bg-white/70 p-1 border border-black rounded flex flex-col items-center">
+                          <div key={team.id} className="bg-white/70 p-1.5 border border-black rounded flex flex-col items-center">
                             <span className="text-[10px] font-black">{team.index}조</span>
                             <input
                               type="number"
                               min="1"
                               max={teams.length}
                               placeholder="#"
-                              className="w-8 border border-black text-center text-xs font-black bg-white"
+                              className="w-11 h-7 border-2 border-black text-center text-sm font-black bg-white"
                               value={teamRanks[team.id] || ''}
                               onChange={(e) => setTeamRanks({ ...teamRanks, [team.id]: e.target.value === '' ? 0 : parseInt(e.target.value) })}
                             />
@@ -1251,7 +1417,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             <button
                               onClick={() => revealTeam(team.id)}
                               disabled={revealingTeamId === team.id}
-                              className={`text-[10px] font-black px-2 py-1 text-white ${
+                              className={`text-xs font-black px-3 py-1.5 text-white ${
                                 revealingTeamId === team.id
                                   ? 'bg-gray-400 cursor-not-allowed'
                                   : 'bg-pink-500 hover:bg-pink-600'
@@ -1261,7 +1427,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             </button>
                           )}
                           {isRevealed && (
-                            <button onClick={() => showTeamResultAgain(team.id)} className="text-[10px] font-black px-2 py-1 bg-blue-500 text-white">
+                            <button onClick={() => showTeamResultAgain(team.id)} className="text-xs font-black px-3 py-1.5 bg-blue-500 text-white">
                               다시보기
                             </button>
                           )}
@@ -1277,7 +1443,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <button onClick={handlePushToTeams} className="brutal-btn w-full py-2 bg-yellow-400 text-xs font-black mt-1">📤 PUSH 전송</button>
                 )}
               </section>
-            </div>
+            </Relocatable>
           </div>
         )}
       </div>
