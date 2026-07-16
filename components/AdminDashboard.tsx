@@ -881,10 +881,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleFullscreenRace = () => {
     const el = raceTrackRef.current;
     if (!el) return;
-    const doc = document as Document & { webkitFullscreenElement?: Element };
+    const doc = document as Document & {
+      webkitFullscreenElement?: Element;
+      webkitExitFullscreen?: () => void;
+    };
     const anyEl = el as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> };
     if (doc.fullscreenElement || doc.webkitFullscreenElement) {
-      document.exitFullscreen?.();
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if (doc.webkitExitFullscreen) {
+        doc.webkitExitFullscreen();
+      }
       return;
     }
     if (anyEl.requestFullscreen) {
