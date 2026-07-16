@@ -544,6 +544,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       ...team,
       totalPushAllowance: pendingAllocations[team.id] || 0,
       hasSubmittedPushes: false,
+      // 직전 라운드 결정을 보존 후 현재 라운드 PUSH 초기화 (참가자 현황보기용)
+      previousRoundPushes: team.currentRoundPushes || [],
       currentRoundPushes: [],
       miniGameRank: teamRanks[team.id]
     }));
@@ -554,7 +556,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         const teamUpdates = currentTeams.map((team, index) => ({
           teamIndex: index,
           totalPushAllowance: pendingAllocations[team.id] || 0,
-          miniGameRank: teamRanks[team.id]
+          miniGameRank: teamRanks[team.id],
+          previousRoundPushes: team.currentRoundPushes || []
         }));
 
         // 팀 할당량, 타이머, 공개 상태, 게임 상태를 부분 업데이트
@@ -876,6 +879,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }, 50);
   };
 
+  // 현황보기 토글: 참가자 화면에 이전 라운드 기록/현재 레이서 위치 공개 여부 제어.
+  // PUSH 입력 중 참가자 제출 데이터를 덮어쓰지 않도록 부분 업데이트 사용.
+  const toggleStatusView = () => {
+    const newVal = !gameState.showStatusView;
+    if (useFirebase) {
+      updateMultipleFieldsPartial(gameState.id, { showStatusView: newVal }).catch((error) => {
+        console.error('현황보기 토글 실패, 전체 업데이트로 폴백:', error);
+        updateState({ ...gameState, showStatusView: newVal });
+      });
+    } else {
+      updateState({ ...gameState, showStatusView: newVal });
+    }
+  };
+
   // 레이싱 중계 화면(1~8번 트랙)을 전체화면으로 크게 보기.
   // Fullscreen API를 사용하므로 브라우저 배율(확대/축소)과 무관하게 항상 전체가 보인다.
   const handleFullscreenRace = () => {
@@ -992,6 +1009,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </button>
           <button onClick={onTogglePreview} className={`brutal-btn px-4 py-2 text-sm ${previewMode ? 'bg-cyan-400' : 'bg-white'}`}>
             {previewMode ? '🏁 대시보드' : '👁 참가자 화면'}
+          </button>
+          <button onClick={toggleStatusView} className={`brutal-btn px-3 py-2 text-sm ${gameState.showStatusView ? 'bg-green-500 text-white' : 'bg-white'}`} title="참가자 휴대폰 화면에 이전 라운드 PUSH 기록/현재 레이서 위치 공개 여부">
+            📊 현황 {gameState.showStatusView ? 'ON' : 'OFF'}
           </button>
           <button onClick={handleFullscreenRace} className="brutal-btn px-3 py-2 text-sm bg-white" title="레이싱 중계화면을 전체화면으로 크게 보기">
             ⛶ 중계화면

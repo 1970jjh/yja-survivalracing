@@ -32,6 +32,7 @@ const normalizeTeam = (team: any): Team => ({
   members: team.members || [],
   sponsorships: team.sponsorships || [],
   currentRoundPushes: team.currentRoundPushes || [],
+  previousRoundPushes: team.previousRoundPushes || [],
   hasSubmittedPushes: team.hasSubmittedPushes || false,
   totalPushAllowance: team.totalPushAllowance || 0,
   totalPoints: team.totalPoints || 0,
@@ -239,13 +240,15 @@ export const updateRevealStatePartial = async (
 // 팀 데이터를 부분적으로 업데이트 (PUSH 권한 배분용 - 기존 PUSH 데이터 유지)
 export const updateTeamsForPushAllocation = async (
   gameId: string,
-  teamUpdates: { teamIndex: number; totalPushAllowance: number; miniGameRank?: number }[]
+  teamUpdates: { teamIndex: number; totalPushAllowance: number; miniGameRank?: number; previousRoundPushes?: any[] }[]
 ): Promise<void> => {
   const updates: Record<string, any> = {};
 
   for (const teamUpdate of teamUpdates) {
     updates[`games/${gameId}/teams/${teamUpdate.teamIndex}/totalPushAllowance`] = teamUpdate.totalPushAllowance;
     updates[`games/${gameId}/teams/${teamUpdate.teamIndex}/hasSubmittedPushes`] = false;
+    // 새 라운드 PUSH를 초기화하기 전에 직전 라운드 결정을 보존 (참가자 현황보기용)
+    updates[`games/${gameId}/teams/${teamUpdate.teamIndex}/previousRoundPushes`] = teamUpdate.previousRoundPushes || [];
     updates[`games/${gameId}/teams/${teamUpdate.teamIndex}/currentRoundPushes`] = [];
     if (teamUpdate.miniGameRank !== undefined) {
       updates[`games/${gameId}/teams/${teamUpdate.teamIndex}/miniGameRank`] = teamUpdate.miniGameRank;
