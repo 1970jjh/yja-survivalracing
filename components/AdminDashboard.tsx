@@ -544,9 +544,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       ...team,
       totalPushAllowance: pendingAllocations[team.id] || 0,
       hasSubmittedPushes: false,
-      // 정상 라운드 전환(MINI_GAME→PUSH_INPUT)에서만 직전 결정을 갱신.
-      // PUSH_INPUT에서의 재전송 시에는 기존 직전 라운드 기록을 보존 (현황보기용).
-      previousRoundPushes: gameState.status === 'MINI_GAME' ? (team.currentRoundPushes || []) : (team.previousRoundPushes || []),
+      // 직전 라운드 결정을 보존 후 현재 라운드 PUSH 초기화 (참가자 현황보기용)
+      previousRoundPushes: team.currentRoundPushes || [],
       currentRoundPushes: [],
       miniGameRank: teamRanks[team.id]
     }));
@@ -558,7 +557,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           teamIndex: index,
           totalPushAllowance: pendingAllocations[team.id] || 0,
           miniGameRank: teamRanks[team.id],
-          previousRoundPushes: gameState.status === 'MINI_GAME' ? (team.currentRoundPushes || []) : (team.previousRoundPushes || [])
+          previousRoundPushes: team.currentRoundPushes || []
         }));
 
         // 팀 할당량, 타이머, 공개 상태, 게임 상태를 부분 업데이트
@@ -1442,10 +1441,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
                 {gameState.status === 'MINI_GAME' && (
                   <button onClick={handlePushToTeams} className="brutal-btn w-full py-2 bg-yellow-400 text-xs font-black mt-1">📤 PUSH 전송</button>
-                )}
-                {/* PUSH_INPUT 중에도 순위·배분을 다시 했으면 재전송 가능 (잘못 보낸 경우 복구용) */}
-                {gameState.status === 'PUSH_INPUT' && Object.keys(pendingAllocations).length > 0 && (
-                  <button onClick={handlePushToTeams} className="brutal-btn w-full py-2 bg-orange-400 text-xs font-black mt-1">📤 PUSH 재전송 (배분 다시 적용)</button>
                 )}
               </section>
             </Relocatable>
