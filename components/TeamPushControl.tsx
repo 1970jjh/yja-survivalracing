@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Team, GameState, PushDecision } from '../types';
 import { RacerCarImage } from '../constants';
+import { isFallen, getRacerRanks } from '../utils/racerRanking';
 
 // 금액을 한글 단위로 변환
 const formatKoreanMoney = (amount: number): string => {
@@ -13,27 +14,7 @@ const formatKoreanMoney = (amount: number): string => {
   return '0원';
 };
 
-// 공동 순위 계산
-const getRacerRanks = (sortedRacers: { position: number; isEliminated: boolean }[]): number[] => {
-  const ranks: number[] = [];
-  let i = 0;
-  while (i < sortedRacers.length) {
-    if (sortedRacers[i].isEliminated) {
-      ranks.push(-1);
-      i++;
-      continue;
-    }
-    let j = i;
-    while (j < sortedRacers.length && !sortedRacers[j].isEliminated && sortedRacers[j].position === sortedRacers[i].position) {
-      j++;
-    }
-    for (let k = i; k < j; k++) {
-      ranks.push(i + 1);
-    }
-    i = j;
-  }
-  return ranks;
-};
+// 레이서 순위/추락 판정은 공유 모듈(관리자 화면과 동일 로직) 사용
 
 interface TeamPushControlProps {
   team: Team;
@@ -229,10 +210,10 @@ const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUp
           <h3 className="text-xs font-black uppercase mb-2 border-b-2 border-black pb-1">현재 레이서 위치</h3>
           <div className="grid grid-cols-4 gap-1 mb-4">
             {racers.map(r => (
-              <div key={r.id} className={`p-1 border border-black text-center ${r.isEliminated ? 'bg-gray-300 opacity-60' : 'bg-white'}`}>
+              <div key={r.id} className={`p-1 border border-black text-center ${isFallen(r) ? 'bg-gray-300 opacity-60' : 'bg-white'}`}>
                 <div className="flex justify-center"><RacerCarImage racerId={String(r.id)} size={24} /></div>
                 <div className="text-[10px] font-black">{r.id}번</div>
-                <div className="text-[10px] font-black text-blue-700">{r.isEliminated ? '💀 탈락' : `${r.position}칸`}</div>
+                <div className="text-[10px] font-black text-blue-700">{isFallen(r) ? '💀 추락' : `${r.position}칸`}</div>
               </div>
             ))}
           </div>
@@ -279,14 +260,14 @@ const TeamPushControl: React.FC<TeamPushControlProps> = ({ team, gameState, onUp
             <div className="grid grid-cols-4 gap-2">
               {(() => {
                 const sorted = [...racers].sort((a, b) => {
-                  if (a.isEliminated && !b.isEliminated) return 1;
-                  if (!a.isEliminated && b.isEliminated) return -1;
+                  if (isFallen(a) && !isFallen(b)) return 1;
+                  if (!isFallen(a) && isFallen(b)) return -1;
                   return b.position - a.position;
                 });
                 const ranks = getRacerRanks(sorted);
                 return sorted.map((racer, idx) => (
-                  <div key={racer.id} className={`p-2 border-2 border-black text-center ${racer.isEliminated ? 'bg-gray-300 opacity-50' : ranks[idx] === 1 ? 'bg-yellow-400' : 'bg-white'}`}>
-                    <div className="text-sm font-black">{racer.isEliminated ? '💀' : `${ranks[idx]}등`}</div>
+                  <div key={racer.id} className={`p-2 border-2 border-black text-center ${isFallen(racer) ? 'bg-gray-300 opacity-50' : ranks[idx] === 1 ? 'bg-yellow-400' : 'bg-white'}`}>
+                    <div className="text-sm font-black">{isFallen(racer) ? '💀' : `${ranks[idx]}등`}</div>
                     <div className="flex justify-center my-1">
                       <RacerCarImage racerId={String(racer.id)} size={32} />
                     </div>

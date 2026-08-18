@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import { GameState, Team, TimerState, RevealState } from '../types';
 import { RacerCarImage, CLIFF_IMAGE } from '../constants';
+import { isFallen, getRacerRanks, computeRacerMultipliers } from '../utils/racerRanking';
 import { updateTimerPartial, updateRacersPartial, updateRevealStatePartial, updateTeamsForPushAllocation, updateMultipleFieldsPartial } from '../firebase';
 import TeamPushControl from './TeamPushControl';
 import TeamSponsorship from './TeamSponsorship';
@@ -45,28 +46,7 @@ const formatKoreanMoney = (amount: number): string => {
   return '0원';
 };
 
-// 공동 순위 계산: 정렬된 레이서 배열에서 각 인덱스의 순위를 반환
-// 같은 position이면 같은 순위 (예: 1,2,3,3,5,5,7,8)
-const getRacerRanks = (sortedRacers: { position: number; isEliminated: boolean }[]): number[] => {
-  const ranks: number[] = [];
-  let i = 0;
-  while (i < sortedRacers.length) {
-    if (sortedRacers[i].isEliminated) {
-      ranks.push(-1); // eliminated
-      i++;
-      continue;
-    }
-    let j = i;
-    while (j < sortedRacers.length && !sortedRacers[j].isEliminated && sortedRacers[j].position === sortedRacers[i].position) {
-      j++;
-    }
-    for (let k = i; k < j; k++) {
-      ranks.push(i + 1); // 1-based rank
-    }
-    i = j;
-  }
-  return ranks;
-};
+// 레이서 순위/수익 배수 계산은 공유 모듈(참가자 화면과 동일 로직) 사용
 
 // 별도 브라우저 창(듀얼 모니터용)에 자식 요소를 렌더링하는 컴포넌트.
 // 단순 포털이 아닌 별도의 React 루트를 사용하여, 팝업 창 안의 버튼/입력이
@@ -768,40 +748,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     requestAnimationFrame(() => {
       const currentRacers = gameState.racers || [];
       const currentTeams = gameState.teams || [];
-      const activeRacers = [...currentRacers]
-        .filter(r => !r.isEliminated)
-        .sort((a, b) => b.position - a.position);
 
-      // 공동 순위 처리: 같은 position의 레이서들은 같은 순위, 배수는 해당 순위들의 평균
-      const racerMultipliers: Record<number, number> = {};
-      let i = 0;
-      while (i < activeRacers.length) {
-        let j = i;
-        // 같은 position인 레이서들 찾기
-        while (j < activeRacers.length && activeRacers[j].position === activeRacers[i].position) {
-          j++;
-        }
-        // i부터 j-1까지 같은 순위 → 배수의 평균 계산
-        let sumMultiplier = 0;
-        for (let k = i; k < j; k++) {
-          sumMultiplier += 8 - k; // 원래 순위별 배수
-        }
-        const avgMultiplier = sumMultiplier / (j - i);
-        for (let k = i; k < j; k++) {
-          racerMultipliers[activeRacers[k].id] = avgMultiplier;
-        }
-        i = j;
-      }
+      // 절벽(20칸 초과) 추락 레이서는 배수 0, 생존 레이서는 20에 가까운 순서대로 1등(×8)~8등(×1)
+      const racerMultipliers = computeRacerMultipliers(currentRacers);
 
       const teamIncomes = currentTeams.map(team => {
         let income = 0;
         const sponsorships = team.sponsorships || [];
         sponsorships.forEach(s => {
-          const multiplier = racerMultipliers[s.racerId];
-          if (multiplier !== undefined) {
-            income += (s.amount * 10000000) * multiplier; // 천만원 단위
-          }
-          // 탈락한 레이서는 수익 0
+          const multiplier = racerMultipliers[s.racerId] || 0; // 추락/미존재 레이서는 수익 0
+          income += (s.amount * 10000000) * multiplier; // 천만원 단위
         });
         return { ...team, totalPoints: income };
       });
@@ -1708,14 +1664,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div className="grid grid-cols-4 gap-4">
                 {(() => {
                   const sorted = [...racers].sort((a, b) => {
-                    if (a.isEliminated && !b.isEliminated) return 1;
-                    if (!a.isEliminated && b.isEliminated) return -1;
+                    if (isFallen(a) && !isFallen(b)) return 1;
+                    if (!isFallen(a) && isFallen(b)) return -1;
                     return b.position - a.position;
                   });
                   const ranks = getRacerRanks(sorted);
                   return sorted.map((racer, idx) => (
-                    <div key={racer.id} className={`p-4 border-4 border-black text-center ${racer.isEliminated ? 'bg-gray-300 opacity-50' : ranks[idx] === 1 ? 'bg-yellow-400' : 'bg-white'}`}>
-                      <div className="text-3xl font-black">{racer.isEliminated ? '💀' : `${ranks[idx]}등`}</div>
+                    <div key={racer.id} className={`p-4 border-4 border-black text-center ${isFallen(racer) ? 'bg-gray-300 opacity-50' : ranks[idx] === 1 ? 'bg-yellow-400' : 'bg-white'}`}>
+                      <div className="text-3xl font-black">{isFallen(racer) ? '💀' : `${ranks[idx]}등`}</div>
                       <div className="flex justify-center my-2">
                         <RacerCarImage racerId={racer.id} size={56} />
                       </div>
@@ -1750,14 +1706,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <div className="grid grid-cols-4 gap-3">
                     {(() => {
                       const sorted = [...racers].sort((a, b) => {
-                        if (a.isEliminated && !b.isEliminated) return 1;
-                        if (!a.isEliminated && b.isEliminated) return -1;
+                        if (isFallen(a) && !isFallen(b)) return 1;
+                        if (!isFallen(a) && isFallen(b)) return -1;
                         return b.position - a.position;
                       });
                       const ranks = getRacerRanks(sorted);
                       return sorted.map((racer, idx) => (
-                        <div key={racer.id} className={`p-3 border-4 border-black text-center ${racer.isEliminated ? 'bg-gray-300 opacity-50' : ranks[idx] === 1 ? 'bg-yellow-400' : 'bg-white'}`}>
-                          <div className="text-2xl font-black">{racer.isEliminated ? '💀' : `${ranks[idx]}등`}</div>
+                        <div key={racer.id} className={`p-3 border-4 border-black text-center ${isFallen(racer) ? 'bg-gray-300 opacity-50' : ranks[idx] === 1 ? 'bg-yellow-400' : 'bg-white'}`}>
+                          <div className="text-2xl font-black">{isFallen(racer) ? '💀' : `${ranks[idx]}등`}</div>
                           <div className="flex justify-center my-1">
                             <RacerCarImage racerId={String(racer.id)} size={48} />
                           </div>
