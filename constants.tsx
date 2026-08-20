@@ -14,16 +14,13 @@ export const RACER_COLORS = [
   '#f97316', // Orange
 ];
 
-// 레이서별 자동차 이미지 URL
-export const RACER_CAR_IMAGES: Record<string, string> = {
-  '1': 'https://i.ibb.co/9xY5PxL/r1.png',
-  '2': 'https://i.ibb.co/HTK50ZcB/r2.png',
-  '3': 'https://i.ibb.co/hRGw86n9/r3.png',
-  '4': 'https://i.ibb.co/x8RrmWzD/r4.png',
-  '5': 'https://i.ibb.co/M5x1fD3X/r5.png',
-  '6': 'https://i.ibb.co/gLww9GJV/r6.png',
-  '7': 'https://i.ibb.co/5xBBHrJh/r7.png',
-  '8': 'https://i.ibb.co/gbjb9s5G/r8.png',
+// 차체색을 어둡게 변환 (사이드포드 음영용)
+const shadeColor = (hex: string, f: number): string => {
+  const num = parseInt(hex.slice(1), 16);
+  const r = Math.round(((num >> 16) & 255) * f);
+  const g = Math.round(((num >> 8) & 255) * f);
+  const b = Math.round((num & 255) * f);
+  return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 };
 
 // 절벽 이미지 URL
@@ -40,18 +37,61 @@ export const CarIcon = ({ color, size = 24 }: { color: string; size?: number }) 
   </svg>
 );
 
-// 레이서 자동차 이미지 컴포넌트
+// 레이서 자동차 이미지 컴포넌트 (프로젝트 내장 SVG)
+// 외부 CDN(i.ibb.co)에서 PNG를 불러오던 방식은 사내망 등 제한된 네트워크에서 차단되어
+// 차량이 보이지 않는 문제가 있어, 외부 요청이 전혀 없는 인라인 SVG로 대체했다.
 export const RacerCarImage = ({ racerId, size = 40 }: { racerId: string; size?: number }) => {
-  const imageUrl = RACER_CAR_IMAGES[racerId];
-  if (!imageUrl) {
-    return <CarIcon color={RACER_COLORS[parseInt(racerId) - 1] || '#888'} size={size} />;
-  }
+  const idx = parseInt(racerId, 10);
+  const color = RACER_COLORS[idx - 1] || '#888888';
+  const dark = shadeColor(color, 0.72);
+  const label = Number.isNaN(idx) ? '' : String(idx);
+
   return (
-    <img
-      src={imageUrl}
-      alt={`Racer ${racerId}`}
-      style={{ width: size, height: size, objectFit: 'contain' }}
-      draggable={false}
-    />
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 100 100"
+      xmlns="http://www.w3.org/2000/svg"
+      role="img"
+      aria-label={`Racer ${racerId}`}
+      style={{ display: 'block' }}
+    >
+      <g stroke="#0b0b0b" strokeWidth={3} strokeLinejoin="round" strokeLinecap="round">
+        {/* 리어윙 */}
+        <rect x="6" y="36" width="8" height="26" rx="1.5" fill="#161616" />
+        <rect x="3" y="33" width="15" height="6" rx="1.5" fill="#161616" />
+        {/* 차체 */}
+        <path d="M12,61 L12,48 Q13,44 19,44 L56,44 L62,35 Q65,32 70,34 L74,45 L97,53 L74,61 Z" fill={color} />
+        {/* 사이드포드 흡기구 */}
+        <path d="M74,46 L82,49 L80,57 L74,58 Z" fill={dark} />
+        {/* 콕핏 */}
+        <ellipse cx="66" cy="41" rx="6" ry="3.6" fill="#12151c" strokeWidth={2} />
+        {/* 드라이버 헬멧 */}
+        <circle cx="66" cy="41" r="2.6" fill="#f8fafc" strokeWidth={1.4} />
+        {/* 프론트윙 */}
+        <rect x="84" y="59" width="15" height="4.5" rx="1" fill="#161616" />
+        <rect x="95.5" y="52" width="3.5" height="12" rx="1" fill="#161616" />
+        {/* 바퀴 */}
+        <circle cx="28" cy="64" r="11" fill="#141414" />
+        <circle cx="28" cy="64" r="5" fill="#4b5563" strokeWidth={2} />
+        <circle cx="80" cy="64" r="11" fill="#141414" />
+        <circle cx="80" cy="64" r="5" fill="#4b5563" strokeWidth={2} />
+        {/* 번호 (작은 화면에서도 잘 보이도록 크게) */}
+        <circle cx="50" cy="50" r="14" fill="#f8fafc" strokeWidth={3} />
+        <text
+          x="50"
+          y="51.5"
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontFamily="Arial Black, Arial, sans-serif"
+          fontWeight={900}
+          fontSize={21}
+          fill="#0b0b0b"
+          stroke="none"
+        >
+          {label}
+        </text>
+      </g>
+    </svg>
   );
 };
